@@ -6,6 +6,8 @@ var logger = require('morgan');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var imapRouter = require('./routes/imap');
+var pop3Router = require('./routes/pop3');
 
 var app = express();
 
@@ -21,6 +23,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/imap', imapRouter);
+app.use('/pop3', pop3Router);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
