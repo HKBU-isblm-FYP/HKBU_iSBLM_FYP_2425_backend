@@ -11,7 +11,7 @@ var router = express.Router();
 
 const { connectToDB, ObjectId } = require('../utils/db');
 const fs = require('fs');
-const { simpleParser } = require('mailparser');
+const { simpleParser, MailParser } = require('mailparser');
 const PopNode = require('node-pop3');
 const { SourceTextModule } = require('vm');
 
@@ -35,9 +35,17 @@ let mapIDToUID = new Map(); //Server HashMap for mapping ID to UID
 let localMapUIDToID = new Map(); //Local HashMap for mapping UID to ID;
 let localMapIDToUID = new Map(); //Local HashMap for mapping ID to UID
 
-// let phrasedEmail = null;
+let localParsedList = null; //Store Global pharse mail List in CheckSync func
 
 let hasInit = false;
+
+
+// let MAX = emailIDList.length; //For Limit the num, Test purpose;
+let MAX = 5; //For Limit the num, Test purpose;
+
+let parser = new MailParser({ //Option for Parser.
+    skipHtmlToText: true,
+});
 
 async function initList() {
 
@@ -90,6 +98,7 @@ async function getArchive() {
  * 
  * To Skip the effort of redownloading everything -> Purpose of This Function
  * Procedures: Check the UID of Local Storage object comapare to Server's Mails UID.
+ * 
  * @param {localRawMailStoragte} backup 
  * @param {ServerIDListFresh} emailIDList 
  * @returns 
@@ -98,7 +107,7 @@ async function checkSync(backup, emailIDList) {
 
     console.log("Enter CheckAndSync")
 
-    const parsedBak = await praseMailList(backup, emailIDList); //I shall also Store the Local UID in Here.
+    localParsedList = await praseMailList(backup, emailIDList); //I shall also Store the Local UID in Here.
 
     //Problem 1 -> How to Get the UID of Local. - Solved by Injecting UID!
     // parsedBak.forEach(x => console.log(x.UID));
@@ -110,11 +119,11 @@ async function checkSync(backup, emailIDList) {
     for (let i = 0; i < emailIDList.length; i++) {
         let sUid = emailIDList[i][1];
 
-        for (let j = 0; j < parsedBak.length; j++) {
-            let pUid = parsedBak[j].UID;
+        for (let j = 0; j < localParsedList.length; j++) {
+            let pUid = localParsedList[j].UID;
 
             if (sUid === pUid) {
-                sameUIDList.push(sUid);
+                sameUIDList.push(sUid); //Respecting the Order of LocalParsedList.
 
                 break;
             }
@@ -212,9 +221,6 @@ async function saveEmails(emailsList) {
 //Get All Emails from the InBox / Sync if needed
 async function getMailList(pop3, emailIDList) {
 
-    // let MAX = emailIDList.length; //For Limit the num, Test purpose;
-    let MAX = 5; //For Limit the num, Test purpose;
-
     const localMails = await getArchive(); //Get Local Email Storage
 
     let emailsList = [];
@@ -257,7 +263,7 @@ async function getMailList(pop3, emailIDList) {
 
 /**
  * 
-//Phrase the List to email with attributes for access -> also add the UID attributes to the object.
+//Phrase the List of email with attributes for access -> also add the UID attributes to the object.
  * @param {ListOfRawMails} emailsList 
  * @param {ListOfIDs} emailIDList 
  * @returns 
@@ -326,48 +332,93 @@ router.get('/list', async (req, res) => {
 
     await pop3.QUIT();
 
-    let parsedList = await praseMailList(emailsList, emailIDList); //Need to resolve promise
+    localParsedList = await praseMailList(emailsList, emailIDList); //Need to resolve promise
     // console.log('List Len:' + emailsList.length);
 
     let emailNameList = [];
 
-    for (let i = 0; i < parsedList.length; i++) {
+    for (let i = 0; i < localParsedList.length; i++) {
         // console.log('In Da Loop'append)
-        const subject = parsedList[i].subject;
-        // console.log(parsedList[i]);
+        const subject = localParsedList[i].subject;
+        // console.log(localParsedList[i]);
         // console.log(subject);
         emailNameList.push(subject);
     }
 
     // console.log(emailIDList);
-    // console.log(parsedList[0]);
+    // console.log(localParsedList[0]);
 
-    res.json({ list: emailNameList, Count: emailIDList.length }); // I have yet to figure This Thang out.
+    res.json({ list: emailNameList, Count: emailIDList.length, Limit: MAX }); // I have yet to figure This Thang out.
 });
 
 //Get an Email
 router.get('/email/:num', async (req, res) => {
 
-    var num = req.params.num || 1;
-    if (num < 1) { num = 1 };
+    await initList();
 
-    console.log('Getting Email No.' + num);
+    // var num = req.params.num || 1;
+    // if (num < 1) { num = 1 };
+    let num = validNum(req.params.num);
 
-    const rawEmail = await pop3.RETR(num);
+    const localMails = await getArchive(); //Get Local Email Storage
+    await checkSync(localMails, emailIDList); //This Part shall have a Global Parsed List of Mails.
 
-    await pop3.QUIT();
+    let parsedEmail = null;
 
-    const phrasedEmail = await simpleParser(rawEmail);
+    let query = num.toString();
+    if (localMapIDToUID.has(query)) {
+
+        console.log("Get From Local");
+        parsedEmail = localParsedList[getListIndex(num)];
+    } else {
+
+        console.log('Getting Server Email No.' + num);
+        const rawEmail = await pop3.RETR(num);
+        await pop3.QUIT();
+        parsedEmail = await simpleParser(rawEmail);
+    }
+
+
+    //Handle Attachment Code;
+
+    let attachmentList = parsedEmail.attachments;
+    let hasAttachment = attachmentList.length > 0;
+
+    let parsedAttachmentList = [];
+
+    if (hasAttachment) {
+
+        console.log("Has attachemnts");
+
+        //TBC
+        for (let i = 0; i < attachmentList.length; i++) {
+            let attachment = attachmentList[i];
+            let contentType = attachment.contentType;
+
+        }
+
+        // console.log(attachmentList[0]);
+        // parsedAttachmentList = attachmentList.map(attachment => Buffer.from(attachment.content, 'base64'));
+    }
+
 
     // res.json(phrasedEmail);
     result = {
-        subject: phrasedEmail.subject,
-        attachment: phrasedEmail.attachment != null
+        subject: parsedEmail.headers.get("subject"),
+        from: parsedEmail.headers.get('from'),
+        // attachment: prasedEmail.attachment,
+        hasAttachment: hasAttachment,
     }
 
-    console.log(phrasedEmail)
+    parsedEmail.hasAttachment = hasAttachment;
 
-    res.json(phrasedEmail);
+    // res.setHeader('Content-Type', 'application/json');
+    // res.send(JSON.stringify(result));  // Indent with 4 spaces
+
+    // console.log(prasedEmail)
+    return res.json(parsedEmail);
+    // return res.json(result);
+    // return res.json(prasedEmail.text);
 });
 
 /**
@@ -391,7 +442,7 @@ async function sendToMonGo(parsedMail) {
     //Sample Code -> TBC to Email Parser specific Data.
     const db = await connectToDB();
     try {
-        req.body.numTickets = parseInt(req.body.numTickets);
+        req.body.subject = parseInt(req.body.numTickets);
         req.body.terms = req.body.terms == "on";
         req.body.createdAt = new Date();
         req.body.modifiedAt = new Date();
@@ -403,6 +454,15 @@ async function sendToMonGo(parsedMail) {
     } finally {
         await db.client.close();
     }
+}
+
+/**
+ * Index trans from Natural to 0 based | 1st email is 0 in theparsedMail List etc.
+ * @param {int} num 
+ * @returns 
+ */
+function getListIndex(num) {
+    return num - 1;
 }
 
 //Sync One email to MonGO DB. (Shall use kebab case for url..) 
@@ -428,13 +488,16 @@ router.get('/sync-email/:num', async (req, res) => {
 
         //Check if this email (Natural Index) in Server's Storage
         if (localMapIDToUID.has(query)) {
+
+            //Shall Chec Also If There Exist This record in MonGoDB
+
             console.log("We Have it " + query);
 
-            //Get That Mail from Local
-            const mail = null
+            //Get That parsed Mail from Local
+            const parsedMail = localParsedList[getListIndex(num)]; //To get from array, use simple int
 
-            //Phrase it
-            const parsedMail = null;
+            // console.log(parsedMail);
+            console.log(`Sending parsedMail No.${num} to Mongo`);
 
             //Send it to MonGO!
             // sendToMonGo(parsedMail);
