@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 var fs = require('fs'), fileStream;
 
-const Imap = require('imap-v2');
+const Imap = require('imap');
 const inspect = require('util').inspect;
 
 const imapConfOutlook = {
