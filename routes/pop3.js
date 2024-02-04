@@ -10,12 +10,11 @@ var express = require('express');
 var router = express.Router();
 
 const { connectToDB, ObjectId } = require('../utils/db');
-const { saveToBlackBlaze, getPrivateDownloadUrl, B2 } = require('../utils/backblaze')
+const { saveToBackblaze, getPrivateDownloadUrl, initBackBlaze_b2, getDownloadAuth_b2 } = require('../utils/backblaze')
 
 const fs = require('fs');
 const { simpleParser, MailParser } = require('mailparser');
 const PopNode = require('node-pop3');
-const { SourceTextModule } = require('vm');
 
 const ARCHIVE = 'rawEmailList.json';
 // Initialize email object with connection info.
@@ -112,45 +111,53 @@ async function checkSync(backup, emailIDList) {
         localMapUIDToID.set(sameUIDList[i], sameIndexList[i]);
     }
 
-    console.log("These are same email UID list: " + sameUIDList);
-    console.log("These are same email index list: " + sameIndexList);
+    // console.log("These are same email UID list: " + sameUIDList);
+    // console.log("These are same email index list: " + sameIndexList);
 
     let ogUIDs = emailIDList.map(pair => pair[1]);
     let missingUIDList = ogUIDs.filter(id => !sameUIDList.includes(id));
     let missingIndexList = missingUIDList.map(x => getIndex(x));
 
-    console.log("These are the missing UID list: \n" + missingUIDList);
-    console.log("These are the missing email index list: \n" + missingIndexList);
-    console.log(typeof missingIndexList[0]);
+    // console.log(typeof missingIndexList[0]);
 
     if (missingUIDList.length > 0) {
+
+        console.log("These are the missing UID list: \n" + missingUIDList);
+        console.log("These are the missing email index list: \n" + missingIndexList);
+
         console.log("Not Sync")
         return false, missingIndexList //We have to Download the missing
     }
 
+    console.log("In Sync")
     return true // We are synced.
 }
 
-//Get Index of Mail from UID
+/**
+ * Get index of mail from UID.
+ * @param {number} uid - The UID of the mail
+ * @return {number} - The index of the mail
+ */
 function getIndex(uid) {
-    // let i = mapUIDToID[uid];
-    let i = mapUIDToID.get(uid);
-    // let j = hashmapUID.get(uid); //It was stored with[], so .get() would not work.
-    // console.log('getIndex i' + i + ' ' + j);
-    return i;
+    // get index from map using uid as key
+    let index = mapUIDToID.get(uid);
+    return index;
 }
 
-//Download All the Mails to Local
+/**
+ * This function downloads all the emails from a POP3 server and stores them in a local array.
+ * @param {Object} pop3 - The POP3 server object.
+ * @param {number} MAX - The maximum number of emails to download.
+ * @return {Array} An array of downloaded emails.
+ */
 async function downloadMails(pop3, MAX) {
-
     console.log("Downloading Mails");
     let emailsList = [];
 
-    // for (let i = 0; i < emailIDList.length; i++) {
     for (let i = 0; i < MAX; i++) {
         const mail = await pop3.RETR(i + 1, 0);
         emailsList.push(mail);
-        console.log("Getting Email No." + (i + 1));
+        console.log(`Getting Email No.${i + 1}`);
     }
 
     return emailsList;
@@ -271,7 +278,7 @@ async function praseMailList(emailsList, emailIDList) {
 
 /**
  * 
- * Make map from UID to Index  / OR ID to UID/ of Inbox mails list
+ * Make map from UID to Index && Index to UID of Inbox mails list
  * @param {ListofID} emailIDList 
  * @param {Map} UIDToID 
  * @param {Map} IDToUID 
@@ -340,7 +347,53 @@ async function getArchive() {
 }
 
 
-// GET an EmailList from MailBox
+/**
+ * 
+ * Check params num - run after init
+ * 
+ * @param {int} num 
+ * @returns num 
+ */
+function validNum(num) {
+
+    if (num < 1 || num > emailIDList.length - 1) { //This num of email is Invalid
+        console.log("Reset Invalid num");
+        num = 1;
+    }
+
+    return num;
+}
+
+/**
+ * Check if the provided UID is valid.
+ * @param {string} UID - The UID to be checked.
+ * @return {boolean} True if the UID is valid, false otherwise.
+ */
+function validUID(UID) {
+
+    if (!mapUIDToID.has(UID)) {
+        console.log("Has no such Email with UID: " + UID);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Index trans from Natural to 0 based | 1st email is 0 in theparsedMail List etc.
+ * @param {int} num 
+ * @returns 
+ */
+function getListIndex(num) {
+    return num - 1;
+}
+
+
+/**
+ * @route GET /list-local
+ * @group MailBox - Operations related to MailBox
+ * @returns {object} 200 - An array of user info
+ * @returns {Error}  default - Unexpected error
+ */
 router.get('/list-local', async (req, res) => {
 
     // Fetch list of all emails
@@ -349,7 +402,7 @@ router.get('/list-local', async (req, res) => {
     let emailsList = await getMailList(pop3, emailIDList);
 
     await pop3.QUIT();
-    
+
     localParsedList = await praseMailList(emailsList, emailIDList); //Need to resolve promise
     // console.log('List Len:' + emailsList.length);
 
@@ -358,12 +411,13 @@ router.get('/list-local', async (req, res) => {
     for (let i = 0; i < localParsedList.length; i++) {
         // console.log('In Da Loop'append)
 
-        let parsed =localParsedList[i];
+        let parsed = localParsedList[i];
 
         let obj = {
-         subject : parsed.subject,
-         from : parsed.headers.get('from'),
-         to : parsed.headers.get('to'),
+            subject: parsed.subject,
+            from: parsed.headers.get('from'),
+            to: parsed.headers.get('to'),
+            UID: parsed.UID,
         }
 
         // console.log(localParsedList[i]);
@@ -378,7 +432,13 @@ router.get('/list-local', async (req, res) => {
 });
 
 
-//Get an Email
+/**
+ * Gets an email from local storage first, if not found then it gets from Outlook.
+ * It also prompts the user to sync their email.
+ * 
+ * @param {string} req.params.num - The email number
+ * @returns {object} res - The response object
+ */
 router.get('/email/:num', async (req, res) => {
 
     await initList();
@@ -396,6 +456,9 @@ router.get('/email/:num', async (req, res) => {
         console.log("Get From Local");
         parsedEmail = localParsedList[getListIndex(num)];
     } else {
+
+        //Start POP3 Connection again;
+        pop3 = new PopNode(pop3Outlook);
 
         console.log('Getting Server Email No.' + num);
         const rawEmail = await pop3.RETR(num);
@@ -416,32 +479,14 @@ router.get('/email/:num', async (req, res) => {
 });
 
 /**
- * 
- * Check params num - run after init
- * 
- * @param {int} num 
- * @returns num 
+ * This function sends data to MongoDB.
+ * @async
+ * @param {Object} req - The request object.
+ * @param {Object} res - The response object.
+ * @param {Object} b2 - The second object.
+ * @param {Object} parsedMail - The parsed mail object.
  */
-function validNum(num) {
-
-    if (num < 1 || num > emailIDList.length - 1) { //This num of email is Invalid
-        console.log("Reset Invalid num");
-        num = 1;
-    }
-
-    return num;
-}
-
-/**
- * Index trans from Natural to 0 based | 1st email is 0 in theparsedMail List etc.
- * @param {int} num 
- * @returns 
- */
-function getListIndex(num) {
-    return num - 1;
-}
-
-async function sendToMonGo(req, res, parsedMail) {
+async function sendToMonGo(req, res, b2, parsedMail) {
     //Sample Code -> TBC to Email Parser specific Data.
 
     let attachmentBBIDs = [];
@@ -453,7 +498,7 @@ async function sendToMonGo(req, res, parsedMail) {
         // Iterate over each attachment
         for (let attachment of parsedMail.attachments) {
             // Save the attachment to BlackBlaze and get the link
-            let link = await saveToBlackBlaze(attachment);
+            let link = await saveToBackblaze(b2, attachment);
 
             // Add the link to the attachments array in the request body
             attachmentBBIDs.push(link);
@@ -468,6 +513,8 @@ async function sendToMonGo(req, res, parsedMail) {
 
         if (b_hasAttachment) {
             req.body.attachments = attachmentBBIDs;
+        } else {
+            req.body.attachments = null;
         }
 
         //Attachment needs to save to BlackBlaze / Which is a link to the Files.
@@ -492,11 +539,19 @@ async function sendToMonGo(req, res, parsedMail) {
         // let result = await db.collection("emails").insertOne(req.body);
         // return { id: result.insertedId, status: 201 };
 
+        let update = { $set: req.body };
+        if (!b_hasAttachment) {
+            delete update.$set.attachments;
+            update.$unset = { attachments: "" };
+        }
+
         let result = await db.collection("emails").updateOne(
             { UID: req.body.UID }, // filter
-            { $set: req.body }, // update
+            // { $set: req.body }, // update
+            update,
             { upsert: true } // options
         );
+
         return { id: result.upsertedId ? result.upsertedId._id : 'No document was upserted.', status: 201 };
 
     } catch (err) {
@@ -508,8 +563,73 @@ async function sendToMonGo(req, res, parsedMail) {
 }
 
 
-//Sync an email to MonGO DB. (Shall use kebab case for url..) 
+/**
+ * @route GET /sync-db
+ * @description Sync All email (index) to MongoDB
+ * @access Public
+ */
+router.get('/sync-db', async (req, res) => {
+
+    const b2 = await initBackBlaze_b2();
+
+    //Init UID Map and email Id List
+    await initList();
+
+    //Query the Map from local Email Storage
+    const localMails = await getArchive(); //Get Local Email Storage
+    await checkSync(localMails, emailIDList); //This Part shall have a Global Parsed List of Mails.
+
+    if (localMails) {
+
+        let totalMsg = 'Synced';
+        let totalCode = 201;
+
+        let result = {};
+
+        // let debugMax = 10;
+        let debugMax = localMails.length;
+
+        for (let i = 0; i < debugMax; i++) {
+
+            //Get That parsed Mail from Local
+            const parsedMail = localParsedList[i]; //To get from array, use simple int
+
+            // console.log(parsedMail);
+            console.log(`Sending parsedMail No.${i + 1} to Mongo`);
+
+            //Send it to MonGO!
+            let db_res = await sendToMonGo(req, res, b2, parsedMail); //Shall Save Link to attachment
+            let msg = 'Email Synced: ' + i + ' UID: ' + parsedMail.UID;
+
+
+            if (db_res.status !== 201) {
+                // return res.json();
+                result[i] = { message: msg + ' Failed', return_code: db_res };
+                // return res.json({ message: msg + ' Failed', return_code: db_res });
+                totalMsg = "There are some error";
+                totalCode = result[i].return_code;
+            }
+
+        }
+        return res.json({ message: totalMsg, return_code: totalCode, errorLog: result });
+
+    } else { //There are no local Storage
+
+        console.log("We Don't Have it " + query);
+        //Sync Files!
+        console.log("Please Sync to Local First");
+    }
+});
+
+
+/**
+ * @route GET /sync-db/:num
+ * @description Sync an email (index) to MongoDB
+ * @access Public
+ */
 router.get('/sync-db/:num', async (req, res) => {
+
+    const b2 = await initBackBlaze_b2();
 
     //Init UID Map and email Id List
     await initList();
@@ -543,10 +663,10 @@ router.get('/sync-db/:num', async (req, res) => {
             console.log(`Sending parsedMail No.${num} to Mongo`);
 
             //Send it to MonGO!
-            let db_res = await sendToMonGo(req, res, parsedMail); //Shall Save Link to attachment
+            let db_res = await sendToMonGo(req, res, b2, parsedMail); //Shall Save Link to attachment
             let msg = 'Email Synced: ' + query + ' UID: ' + parsedMail.UID;
 
-            if (db_res.status !== 201) { //Good and created record
+            if (db_res.status !== 201) {
                 return res.json({ message: msg + ' Failed', return_code: db_res });
             }
 
@@ -569,24 +689,59 @@ router.get('/sync-db/:num', async (req, res) => {
     return res.json('Email Not Synced');
 });
 
+/**
+ * Get email from MongoDB by UID and retrive the headers Back to Map.
+ *
+ * @async
+ * @param {object} db - MongoDB database instance.
+ * @param {string} UID - Unique Identifier of the email.
+ * @returns {Promise<object>} The email object with headers transformed to Map.
+ */
+async function getMongoEmail(db, UID) {
 
+
+    const email = await db.collection('emails').findOne({ UID });
+    email.headers = new Map(Object.entries(email.headers));
+    return email;
+}
+
+
+/**
+ * This endpoint retrieves the attachment links of a specific email from backblaze.
+ * @route GET /get-attachment/{UID}
+ * @param {string} req.params.UID - The unique identifier of the email.
+ * @returns {object} res - The response object containing the attachment links.
+ */
 router.get('/get-attachment/:UID', async (req, res) => {
+
+    if (!validUID(req.params.UID)) {
+        return res.json("No such UID");
+    }
+
+    const b2 = await initBackBlaze_b2();
 
     const db = await connectToDB();
     try {
         // Query MongoDB for Email with the provided UID
-        const email = await db.collection('emails').findOne({ UID: req.params.UID });
+        // const email = await db.collection('emails').findOne({ UID: req.params.UID });
+        const email = await getMongoEmail(db, req.params.UID);
 
         if (!email) {
             return res.status(404).send('Email not found');
+        }
+        if (!hasAttachment(email)) {
+            return res.status(200).send('Email has no attachment');
         }
 
         // Assuming email.attachIds is an array of Backblaze File IDs
         const backblazeIds = email.attachments;
         const attachmentLinks = [];
         // Generate Attachment Links using Backblaze IDs
+
+        const downloadAuth = await getDownloadAuth_b2(b2);
+
         for (const backblazeId of backblazeIds) {
-            const link = await getPrivateDownloadUrl(backblazeId);
+            const link = await getPrivateDownloadUrl(b2, downloadAuth, backblazeId);
             attachmentLinks.push(link);
         }
 
