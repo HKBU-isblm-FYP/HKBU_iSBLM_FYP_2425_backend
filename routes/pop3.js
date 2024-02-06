@@ -25,7 +25,7 @@ const pop3Outlook = {
     port: 995,
     tls: true
 };
-const pop3 = new PopNode(pop3Outlook);
+let pop3 = new PopNode(pop3Outlook);
 
 //Global Variable of ID and UID Email Apps
 let emailIDList = null;

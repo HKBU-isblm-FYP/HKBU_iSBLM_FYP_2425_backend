@@ -8,6 +8,8 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var imapRouter = require('./routes/imap');
 var pop3Router = require('./routes/pop3');
+var lessonsRouter = require('./routes/lessons');
+var projectsRouter = require('./routes/projects');
 
 var app = express();
 
@@ -24,7 +26,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/imap', imapRouter);
-app.use('/pop3', pop3Router);
+app.use('/api/pop3', pop3Router);
+app.use('/api/lessons', lessonsRouter);
+app.use('/api/projects', projectsRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
