@@ -677,6 +677,7 @@ router.get('/sync-db/:num', async (req, res) => {
             console.log("We Don't Have it " + query);
 
             //Download it
+            return res.json("Email Not Synced We Don't Have it: Email No: " + query);
         }
 
     } else { //There are no local Storage
@@ -684,6 +685,7 @@ router.get('/sync-db/:num', async (req, res) => {
         console.log("We Don't Have it " + query);
         //Sync Files!
         console.log("Please Sync to Local First");
+        return res.json('Email Not Synced - Please Sync to Local First: Email No:' + query);
     }
 
     return res.json('Email Not Synced');

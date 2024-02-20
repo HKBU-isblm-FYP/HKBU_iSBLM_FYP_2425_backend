@@ -18,7 +18,7 @@ const _applicationKeyId = '0ab1c44967e3'; // replace with your applicationKeyId
  * The application key for Backblaze B2 Cloud Storage.
  * @type {string}
  */
-const _applicationKey = '004e9a7e308d94c74bfab07b91dc9237ff5d20d96b'; // replace with your applicationKey
+const _applicationKey = '004b6168e665ab05da5cf694618a2fdc600296e939'; // replace with your applicationKey
 
 /**
  * The bucket ID for Backblaze B2 Cloud Storage.

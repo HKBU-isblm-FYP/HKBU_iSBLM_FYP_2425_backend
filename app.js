@@ -1,3 +1,5 @@
+process.env.TOKEN_SECRET = 'Gcap3056Secret';
+
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -23,20 +25,33 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+var jwt = require('jsonwebtoken');
+var passport = require('passport');
+const { isAdmin } = require('./utils/auth');
+var BearerStrategy = require('passport-http-bearer').Strategy;
+passport.use(new BearerStrategy(
+  function (token, done) {
+    jwt.verify(token, process.env.TOKEN_SECRET, function (err, decoded) {
+      if (err) { return done(err); }
+      return done(null, decoded, { scope: "all" });
+    });
+  }
+));
+
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
-app.use('/imap', imapRouter);
-app.use('/api/pop3', pop3Router);
-app.use('/api/lessons', lessonsRouter);
-app.use('/api/projects', projectsRouter);
+app.use('/api/users', passport.authenticate('bearer', { session: false }), usersRouter);
+app.use('/api/imap', passport.authenticate('bearer', { session: false }), imapRouter);
+app.use('/api/pop3', passport.authenticate('bearer', { session: false }), isAdmin, pop3Router);
+app.use('/api/lessons', passport.authenticate('bearer', { session: false }), lessonsRouter);
+app.use('/api/projects', passport.authenticate('bearer', { session: false }), projectsRouter);
 
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   next(createError(404));
 });
 
 // error handler
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
