@@ -12,6 +12,7 @@ var imapRouter = require('./routes/imap');
 var pop3Router = require('./routes/pop3');
 var lessonsRouter = require('./routes/lessons');
 var projectsRouter = require('./routes/projects');
+var json2mdRouter = require('./routes/json2md');
 
 var app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/imap', passport.authenticate('bearer', { session: false }), imapRo
 app.use('/api/pop3', passport.authenticate('bearer', { session: false }), isAdmin, pop3Router);
 app.use('/api/lessons', passport.authenticate('bearer', { session: false }), lessonsRouter);
 app.use('/api/projects', passport.authenticate('bearer', { session: false }), projectsRouter);
+app.use('/api/json2md', passport.authenticate('bearer', { session: false }), json2mdRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
