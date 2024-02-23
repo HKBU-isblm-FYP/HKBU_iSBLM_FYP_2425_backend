@@ -4,6 +4,7 @@ const { connectToDB, ObjectId } = require('../utils/db');
 
 // Route to get all lessons with pagination
 router.get('/all', async (req, res) => {
+  // console.log("Get All lessons");
   const db = await connectToDB();
 
   try {
@@ -21,7 +22,7 @@ router.get('/all', async (req, res) => {
 
     res.json({ total_pages: totalPages, lessons: lessons });
   } catch (err) {
-    // console.error(err);
+    console.log(err);
     // res.json(err);
     res.status(500).json({ message: 'Internal Server Error' });
   } finally {

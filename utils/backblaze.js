@@ -1,3 +1,5 @@
+// AUTHOR: CHAN HOK TING
+
 const B2 = require('backblaze-b2');
 const fs = require('fs');
 const crypto = require('crypto');

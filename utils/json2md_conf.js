@@ -32,4 +32,8 @@ json2md.converters.extended_practice = function (input) {
     return `## Extended Practice\n\n${input}`;
 };
 
+json2md.converters.manager = function (input) {
+    return `## Manager\n\n${input}`;
+};
+
 module.exports = { json2md };

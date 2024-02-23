@@ -29,11 +29,9 @@ router.get('/lesson/:id', async (req, res) => {
     // console.log(json2md);
     // console.log(json2md_conf);
     // res.json(lesson);
-
-    console.log(lesson);
+    // console.log(lesson);
     const lesson_md = json2md(lesson);
-
-    console.log(lesson_md);
+    // console.log(lesson_md);
 
     res.json(lesson_md); //Using Custom type for lesson.
 
