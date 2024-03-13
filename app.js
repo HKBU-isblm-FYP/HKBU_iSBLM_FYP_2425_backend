@@ -12,8 +12,11 @@ var imapRouter = require('./routes/imap');
 var pop3Router = require('./routes/pop3');
 var lessonsRouter = require('./routes/lessons');
 var projectsRouter = require('./routes/projects');
-var json2mdRouter = require('./routes/json2md');
-var md2jsonRouter = require('./routes/md2json');
+
+var json2mdRouter = require('./routes/json2md'); //For Converting JSON to MD
+var md2jsonRouter = require('./routes/md2json'); // TBD
+
+var textbooksRouter = require('./routes/textbooks'); // For Serving textbooks in MD format.
 
 var app = express();
 
@@ -48,6 +51,7 @@ app.use('/api/lessons', passport.authenticate('bearer', { session: false }), les
 app.use('/api/projects', passport.authenticate('bearer', { session: false }), projectsRouter);
 app.use('/api/json2md', passport.authenticate('bearer', { session: false }), json2mdRouter);
 app.use('/api/md2json', passport.authenticate('bearer', { session: false }), md2jsonRouter);
+app.use('/api/textbooks', passport.authenticate('bearer', { session: false }), textbooksRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
