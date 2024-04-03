@@ -36,4 +36,31 @@ json2md.converters.manager = function (input) {
     return `## Manager\n\n${input}`;
 };
 
+json2md.converters.practice = function (input) {
+    // return `## Practice\n\n${input}`;
+    return ``;
+};
+
+json2md.converters.title = function (input) {
+    return `## Title\n\n${input}`;
+};
+
+json2md.converters.projectId = function (input) {
+    // return `## Title\n\n${input}`;
+
+    return ``;
+};
+
+json2md.converters.isPublic = function (input) {
+    // return `## Title\n\n${input}`;
+
+    return ``;
+};
+
+json2md.converters.position = function (input) {
+    // return `## Title\n\n${input}`;
+
+    return ``;
+};
+
 module.exports = { json2md };

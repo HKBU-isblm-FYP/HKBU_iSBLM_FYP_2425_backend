@@ -6,19 +6,48 @@ const { connectToDB, ObjectId } = require('../utils/db');
 router.get('/all', async (req, res) => {
   const db = await connectToDB();
   try {
-    const page = parseInt(req.query.page || 1) - 1;
+
+    const search = req.query.search || '';
+
+    const perPage = parseInt(req.query.perPage || '6');
+    const page = parseInt(req.query.page || 1);
     const size = parseInt(req.query.perPage || 6);
 
-    const totalLessons = await db.collection('projects').countDocuments();
-    const totalPages = Math.ceil(totalLessons / size);
+    let query = {};
+    if (search) {
+      query.title = { $regex: new RegExp(search, 'i') };
+    }
 
-    const projects = await db.collection('projects')
-      .find({})
-      .skip(page * size)
-      .limit(size)
-      .toArray();
+    let pipeline = [
+      {
+        $match: search ? {
+          title: { $regex: new RegExp(search, 'i') }
+        } : {}
+      },
+      {
+        $skip: (page - 1) * perPage
+      },
+      {
+        $limit: perPage
+      }
+    ];
+    const projects = await db.collection('projects').aggregate(pipeline).toArray();
+    let countPipeline = [
+      {
+        $match: search ? {
+          title: { $regex: new RegExp(search, 'i') }
+        } : {}
+      },
+      {
+        $count: "total"
+      }
+    ];
 
-    res.json({ total_pages: totalPages, projects: projects });
+    const countResult = await db.collection('projects').aggregate(countPipeline).toArray();
+    const totalProjects = countResult.length > 0 ? countResult[0].total : 0;
+    const totalPages = Math.ceil(totalProjects / perPage);
+
+    res.json({ total_pages: totalPages, projects: projects, size: totalProjects });
   } catch (err) {
     console.error(err);
     res.status(500).send({ message: 'Internal Server Error' });

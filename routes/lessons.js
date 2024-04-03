@@ -8,19 +8,61 @@ router.get('/all', async (req, res) => {
   const db = await connectToDB();
 
   try {
-    const page = parseInt(req.query.page || 1) - 1;
+    const search = req.query.search || '';
+
+    let MECE = req.headers['x-mece'];
+    MECE = MECE ? MECE.split(',').map(id => new ObjectId(id)) : []; //Need to be array to pass to $nin
+    // console.log(MECE);
+
+    const perPage = parseInt(req.query.perPage || '6');
+    const page = parseInt(req.query.page || 1);
     const size = parseInt(req.query.perPage || 6);
 
-    const totalLessons = await db.collection('lessons').countDocuments();
-    const totalPages = Math.ceil(totalLessons / size);
+    let query = {};
+    if (search) {
+      query.title = { $regex: new RegExp(search, 'i') };
+    }
 
-    const lessons = await db.collection('lessons')
-      .find({})
-      .skip(page * size)
-      .limit(size)
-      .toArray();
+    let pipeline = [
+      {
+        $match: search ? {
+          title: { $regex: new RegExp(search, 'i') }
+        } : {}
+      },
+      {
+        $match: {
+          _id: { $nin: MECE } // These are the Exclude IDS.
+        }
+      },
+      {
+        $skip: (page - 1) * perPage
+      },
+      {
+        $limit: perPage
+      }
+    ];
+    const lessons = await db.collection('lessons').aggregate(pipeline).toArray();
+    let countPipeline = [
+      {
+        $match: search ? {
+          title: { $regex: new RegExp(search, 'i') }
+        } : {}
+      },
+      {
+        $match: {
+          _id: { $nin: MECE } // These are the Exclude IDS.
+        }
+      },
+      {
+        $count: "total"
+      }
+    ];
 
-    res.json({ total_pages: totalPages, lessons: lessons });
+    const countResult = await db.collection('lessons').aggregate(countPipeline).toArray();
+    const totalLessons = countResult.length > 0 ? countResult[0].total : 0;
+    const totalPages = Math.ceil(totalLessons / perPage);
+
+    res.json({ total_pages: totalPages, lessons: lessons, size: totalLessons });
   } catch (err) {
     console.log(err);
     // res.json(err);
@@ -31,8 +73,8 @@ router.get('/all', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-  console.log("Get Lessons");
-  console.log(req.params.id);
+  // console.log("Get Lessons");
+  // console.log(req.params.id);
   const db = await connectToDB();
   try {
     const lesson = await db.collection('lessons').findOne({ _id: new ObjectId(req.params.id) });
