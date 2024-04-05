@@ -74,6 +74,9 @@ app.use('/api/json2md', passport.authenticate('bearer', { session: false }), jso
 app.use('/api/md2json', passport.authenticate('bearer', { session: false }), md2jsonRouter);
 app.use('/api/textbooks', passport.authenticate('bearer', { session: false }), textbooksRouter);
 
+//Serve static upload files;
+app.use('/api/uploads', express.static('uploads')); // THE MYTH IS THAT WE HAVE NO PATHREWRITE IN VUE, so each proxy call to /api proxy, still call the /api route in Express.
+
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
   next(createError(404));

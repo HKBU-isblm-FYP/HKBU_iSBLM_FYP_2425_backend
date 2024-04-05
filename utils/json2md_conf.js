@@ -1,5 +1,6 @@
 const json2md = require("json2md")
 
+
 json2md.converters.id = function (input) {
     return `ID: ${input}`;
 };
@@ -59,7 +60,16 @@ json2md.converters.isPublic = function (input) {
 
 json2md.converters.position = function (input) {
     // return `## Title\n\n${input}`;
+    return ``;
+};
 
+json2md.converters.updatedAt = function (input) {
+    // return `## Title\n\n${input}`;
+    return ``;
+};
+
+json2md.converters.updatedBy = function (input) {
+    // return `## Title\n\n${input}`;
     return ``;
 };
 

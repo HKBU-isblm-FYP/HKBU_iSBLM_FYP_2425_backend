@@ -102,6 +102,28 @@ router.get('/:id', async (req, res) => {
 router.post('/create', async (req, res) => {
   const project = req.body;
 
+  // project.progress.forEach(x => {
+  //   x.chapterId = new ObjectId(x.id);
+  //   x.isCompleted = false;
+  //   delete __rowKey;
+  //   delete title;
+  // })
+
+  project.progress.forEach((x, i) => {
+    project.progress[i] = {
+      chapterId: new ObjectId(x.id),
+      title: x.title,
+      isCompleted: false,
+    }
+  })
+
+  project.member.forEach((x, i) => {
+    project.member[i] = { 
+      id: new ObjectId(x.id) ,
+      name: x.name,
+    }
+  })
+
   const db = await connectToDB();
   // Insert the project data into MongoDB
   try {
@@ -131,48 +153,86 @@ router.post('/createAttachments', uploadFile.any(), async (req, res) => {
    * 
    * Note: I need to create the ID, then call this Route! -> so to pass req.body.projectId, as a part tof the multer save dir!
    */
-  let projectImage = req.body.projectImage
   let projectId = req.body.projectId
-
   console.log('ProjectID', projectId);
 
-  // handle files
-  req.files.forEach((file, index) => {
-    console.log(file);
-
-    //Reloacte Files
-    // Check fieldname and set new path
-    let newDestination;
-    if (file.fieldname === 'projectFile') {
-      newDestination = `./uploads/projects/${projectId}/files/${file.filename}`;
-    } else if (file.fieldname === 'projectImage') {
-      newDestination = `./uploads/projects/${projectId}/img/${file.filename}`;
-    }
-
-    let oldDestination = file.path;
-
-    // Create the directories if they don't exist
-    let newDirectory = path.dirname(newDestination);
-    if (!fs.existsSync(newDirectory)) {
-      fs.mkdirSync(newDirectory, { recursive: true });
-    }
-
-    // Move the file to the new directory
-    fs.rename(oldDestination, newDestination, function (err) {
-      if (err) {
-        console.error(err);
-      } else {
-        console.log("Successfully moved the file!");
+  // handle files - > Must wait for file operation Over!
+  let fileHandlingPromises = req.files.map((file) => {
+    return new Promise((resolve, reject) => {
+      //Relocate Files
+      // Check fieldname and set new path
+      let newDestination;
+      if (file.fieldname === 'projectFile') {
+        newDestination = `./uploads/projects/${projectId}/files/${file.filename}`;
+      } else if (file.fieldname === 'projectImage') {
+        newDestination = `./uploads/projects/${projectId}/img/${file.filename}`;
       }
-    });
 
+      let oldDestination = file.path;
+
+      // Create the directories if they don't exist
+      let newDirectory = path.dirname(newDestination);
+      if (!fs.existsSync(newDirectory)) {
+        fs.mkdirSync(newDirectory, { recursive: true });
+      }
+
+      // Move the file to the new directory
+      fs.rename(oldDestination, newDestination, function (err) {
+        if (err) {
+          console.error(err);
+          reject(err);
+        } else {
+          file.path = newDestination;
+          console.log("Successfully moved the file!");
+          console.log(newDestination);
+          resolve(file);
+        }
+      });
+    });
   });
 
-  // save file to Backblaze B2...
+  let filePaths;
+  let imagePath;
 
+  //Check New Path, and  Client.
+  Promise.all(fileHandlingPromises)
+    .then((files) => {
+      //Prepare file paths
+      filePaths = files.filter(file => file.fieldname === 'projectFile').map(file => file.path);
+      imagePath = files.filter(file => file.fieldname === 'projectImage').map(file => file.path)[0];
 
+      //Send file paths to client
+      res.status(200).json({ message: "Uploaded Files!", filePaths: filePaths, imagePath: imagePath });
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).json({ message: "Error occurred while uploading files", error: err });
+    });
 
+  // SAVE The Path send to Mongo
+  const db = await connectToDB();
+  try {
+    const project = await db.collection('projects').updateOne(
+      { _id: new ObjectId(projectId) },
+      {
+        $set: {
+          'documents.0.public': filePaths,
+          image: imagePath
+        }
+      }
+    );
+    if (!project) {
+      console.log("No such Project")
+      return res.status(404).json({ message: 'Lesson not found' });
+    }
+  } catch (err) {
+    console.log(err);
+  } finally {
+    await db.client.close();
+  }
 
+  // save file to Backblaze B2... //LATER
 });
+
 
 module.exports = router;

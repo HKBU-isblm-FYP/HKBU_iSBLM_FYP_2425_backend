@@ -89,4 +89,18 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+router.post('/create', async (req, res) => {
+  const lesson = req.body;
+
+  // Insert the lesson data into MongoDB
+  try {
+    const result = await db.collection('lessons').insertOne(lesson);
+    const id = result.insertedId;
+
+    res.json(id);
+  } catch (error) {
+    console.error(error);
+  }
+});
+
 module.exports = router;
