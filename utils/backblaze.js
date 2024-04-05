@@ -3,32 +3,49 @@
 const B2 = require('backblaze-b2');
 const fs = require('fs');
 const crypto = require('crypto');
+const { connectToDB, ObjectId } = require('../utils/db');
+
+//Migrate to new B2 account
+// user: 'gcap3056@outlook.com',
+// password: 'hkbugcap3055',
+// host: 'outlook.office365.com',
+// port: 995,
+// tls: true
+
+// bucketName: emailsAttachmentsGCAP3056
+// bucketID: b21664a12385a4c389e90016
+// keyID: 264135439906
+// applicationKey: 005d3dd73134434a23a15938a1b256133a2be7973f
 
 /**
  * The name of the bucket in Backblaze B2 Cloud Storage.
  * @type {string}
  */
-const bucketName = 'emailsAttachments';
+// const bucketName = 'emailsAttachments';
+const bucketName = 'emailsAttachmentsGCAP3056';
 
 /**
  * The application key ID for Backblaze B2 Cloud Storage.
  * @type {string}
  */
-const _applicationKeyId = '0ab1c44967e3'; // replace with your applicationKeyId
+// const _applicationKeyId = '0ab1c44967e3'; // replace with your applicationKeyId
+const _applicationKeyId = '264135439906'; // replace with your applicationKeyId
 
 /**
  * The application key for Backblaze B2 Cloud Storage.
  * @type {string}
  */
-const _applicationKey = '004b6168e665ab05da5cf694618a2fdc600296e939'; // replace with your applicationKey
+// const _applicationKey = '004b6168e665ab05da5cf694618a2fdc600296e939'; // replace with your applicationKey
+const _applicationKey = '005d3dd73134434a23a15938a1b256133a2be7973f'; // replace with your applicationKey
 
 /**
  * The bucket ID for Backblaze B2 Cloud Storage.
  * @type {string}
  */
-const _bucketId = '20eabb11ac54644986d70e13'; // replace with your bucketId
+// const _bucketId = '20eabb11ac54644986d70e13'; // replace with your bucketId
+const _bucketId = 'b21664a12385a4c389e90016'; // replace with your bucketId
 
-let uploadedFiles = null;
+let uploadedFiles = null; //This is the hash of the content -> prevent dups;
 
 /**
  * 
@@ -49,10 +66,30 @@ async function initBackBlaze_b2() {
     }
 
     try {
+        //Shall here download the hashrecord fromMONGO
         uploadedFiles = JSON.parse(fs.readFileSync('uploadedFiles.json'));
     } catch (error) {
+        //Reconstduct hash record From MonGO
+
         console.error('Error loading uploaded files record:', error);
+
+        console.log("Fetching from MongoDB");
+        // Fetch all documents from the collection
+        let db = await connectToDB();
+        let documents = await db.collection('records').find().toArray();
+
+        // Initialize an empty object to store the uploaded files
         uploadedFiles = {};
+
+        // Iterate over the documents to build the uploadedFiles object
+        for (let doc of documents) {
+            // Use the '_id' field as the key and the rest of the document as the value
+            uploadedFiles[doc.hash] = {
+                fileID: doc.fileID,
+                UID: doc.UID,
+                index: doc.index
+            };
+        }
     }
 
     return b2;
@@ -68,8 +105,8 @@ async function initBackBlaze_b2() {
  */
 async function getDownloadAuth_b2(b2, bucketId, fileNamePrefix = '', validDurationInSeconds = 3600) {
     const auth = await b2.getDownloadAuthorization({
-        bucketId : _bucketId,
-        fileNamePrefix : '',
+        bucketId: _bucketId,
+        fileNamePrefix: '',
         validDurationInSeconds: 3600,
     });
 
@@ -78,6 +115,8 @@ async function getDownloadAuth_b2(b2, bucketId, fileNamePrefix = '', validDurati
 
 /**
  * Save to Backblaze B2 and prevent duplicate by calculating hash.
+ * 
+ * //Thee reuslt of the upload rescord shall be Upload to Mongo -> to prevent dups if upload Hash is delted in Express.
  *
  * @param {object} b2 - The Backblaze B2 instance.
  * @param {object} attachment - The file to be uploaded.
@@ -85,7 +124,7 @@ async function getDownloadAuth_b2(b2, bucketId, fileNamePrefix = '', validDurati
  * @param {Buffer} attachment.content - The content of the file.
  * @returns {Promise<string>} The file ID of the uploaded file.
  */
-async function saveToBackblaze(b2, attachment) {
+async function saveToBackblaze(b2, attachment, UID, index) { //To know which attachment is bad..
     const crypto = require('crypto');
     const fs = require('fs');
 
@@ -95,10 +134,11 @@ async function saveToBackblaze(b2, attachment) {
     const fileHash = hash.digest('hex');
     // Check if the file has already been uploaded
     if (uploadedFiles[fileHash]) {
-        console.log(`Skipping duplicate file: ${attachment.filename}`);
-        return uploadedFiles[fileHash]; // Return the fileId from the record
+        console.log(`Skipping duplicate file: ${attachment.filename} UID${UID}:, index: ${index}`); //Should Include also the UID of Mail, Attachment index for uniute ID.
+        return uploadedFiles[fileHash]; // Return the object of (fileId + UID + index) from the record
     }
 
+    //Action if Hash is wrong -> reupload, and Update the new FileID and Hash.
     const response = await b2.getUploadUrl({ bucketId: _bucketId });
     const uploadResponse = await b2.uploadFile({
         uploadUrl: response.data.uploadUrl,
@@ -110,8 +150,8 @@ async function saveToBackblaze(b2, attachment) {
     console.log(`Uploading: ${attachment.filename}`);
 
     // The file was uploaded successfully
-    // Update the record of uploaded files
-    uploadedFiles[fileHash] = uploadResponse.data.fileId;
+    // Update the record of uploaded files - pack in filedID, UID, attachment index
+    uploadedFiles[fileHash] = { fileID: uploadResponse.data.fileId, UID: UID, index: index };
     fs.writeFileSync('uploadedFiles.json', JSON.stringify(uploadedFiles));
 
     return uploadResponse.data.fileId;
@@ -134,5 +174,5 @@ async function getPrivateDownloadUrl(b2, downloadAuth, backblazeID) {
     return downloadUrl;
 }
 
-
-module.exports = { saveToBackblaze, getPrivateDownloadUrl, initBackBlaze_b2, getDownloadAuth_b2 };
+//To Export as reference, pass get UploadedFiles Function!
+module.exports = { saveToBackblaze, getPrivateDownloadUrl, initBackBlaze_b2, getDownloadAuth_b2, getUploadedFiles: () => uploadedFiles };

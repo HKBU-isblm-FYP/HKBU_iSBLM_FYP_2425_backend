@@ -20,6 +20,27 @@ var textbooksRouter = require('./routes/textbooks'); // For Serving textbooks in
 
 var app = express();
 
+//WS UPGRADE
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  /* options */
+  cors: {
+    origin: "http://localhost:5173", //ALLOW VUE DEV TO CONNECT
+  }
+});
+io.on("connection", (socket) => {
+  console.log("Connected WS", socket.id)
+  // Set the socket as a property of the app
+  app.set("connSocket", socket); //Let pop3.js to access this connectionSocket!
+  socket.emit("foo", "Hello world, connection Soecket established.");
+});
+httpServer.listen(3000, () => { // NEED TO DISABLE WWW -> Server.listen code
+  console.log('listening on *:3000');
+});
+//WS
+
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');

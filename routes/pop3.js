@@ -10,11 +10,16 @@ var express = require('express');
 var router = express.Router();
 
 const { connectToDB, ObjectId } = require('../utils/db');
-const { saveToBackblaze, getPrivateDownloadUrl, initBackBlaze_b2, getDownloadAuth_b2 } = require('../utils/backblaze')
+const { saveToBackblaze, getPrivateDownloadUrl, initBackBlaze_b2, getDownloadAuth_b2, getUploadedFiles } = require('../utils/backblaze')
 
 const fs = require('fs');
 const { simpleParser, MailParser } = require('mailparser');
 const PopNode = require('node-pop3');
+
+//WS UPGRADE
+const app = express();
+const server = require('http').createServer(app);
+const io = require('socket.io')(server);
 
 const ARCHIVE = 'rawEmailList.json';
 // Initialize email object with connection info.
@@ -50,7 +55,6 @@ let parser = new MailParser({ //Option for Parser.
 });
 
 async function initList() {
-
     if (hasInit) {
         return;
     }
@@ -62,7 +66,7 @@ async function initList() {
 
     hasInit = true;
 
-    pop3.QUIT();
+    // pop3.QUIT(); //Fuk This error, premature close of pop3 cause damn error - shall leave it to close by the route.
 }
 
 
@@ -395,19 +399,24 @@ function getListIndex(num) {
  * @returns {Error}  default - Unexpected error
  */
 router.get('/list-local', async (req, res) => {
+    // Emit progress update
+    const socket = req.app.get("connSocket");
 
     // Fetch list of all emails
     await initList();
 
+    socket.emit('progress-local-msg', "Getting Mail List via POP3");
     let emailsList = await getMailList(pop3, emailIDList);
 
     await pop3.QUIT();
 
+    socket.emit('progress-local-msg', "Check with Local Mail List");
     localParsedList = await praseMailList(emailsList, emailIDList); //Need to resolve promise
     // console.log('List Len:' + emailsList.length);
 
     let emailNameList = [];
 
+    socket.emit('progress-local-msg', "Syncing");
     for (let i = 0; i < localParsedList.length; i++) {
         // console.log('In Da Loop'append)
 
@@ -423,8 +432,15 @@ router.get('/list-local', async (req, res) => {
         // console.log(localParsedList[i]);
         // console.log(subject);
         emailNameList.push(obj);
+
+        // console.log('Emitting progress-local event');
+        socket.emit('progress-local-num', { progress: (i + 1) / localParsedList.length });
+        // socket.emit('progress-local', "EMIT BYTCH");
+        // socket.emit('foo', "EMIT BYTCH");
     }
 
+
+    socket.emit('progress-local-msg', "Completed");
     // console.log(emailIDList);
     // console.log(localParsedList[0]);
 
@@ -491,18 +507,20 @@ async function sendToMonGo(req, res, b2, parsedMail) {
 
     let attachmentBBIDs = [];
     let b_hasAttachment = hasAttachment(parsedMail);
+    let UID = parsedMail.UID; //unique id of mail
 
     if (b_hasAttachment) {
         console.log("Saving Attachment to BlackBlaze")
 
         // Iterate over each attachment
-        for (let attachment of parsedMail.attachments) {
+        parsedMail.attachments.forEach(async (attachment, index) => {
+
             // Save the attachment to BlackBlaze and get the link
-            let link = await saveToBackblaze(b2, attachment);
+            let link = await saveToBackblaze(b2, attachment, UID, index);
 
             // Add the link to the attachments array in the request body
             attachmentBBIDs.push(link);
-        }
+        })
 
         //Send To BB Object Storage
         console.log("Saving Attachment BackBlaze IDs to MongoDB")
@@ -569,16 +587,22 @@ async function sendToMonGo(req, res, b2, parsedMail) {
  * @access Public
  */
 router.get('/sync-db', async (req, res) => {
+    // Emit progress update
+    const socket = req.app.get("connSocket");
 
     const b2 = await initBackBlaze_b2();
 
     //Init UID Map and email Id List
     await initList();
 
+    socket.emit('progress-sync-msg', "Getting Mail List via POP3");
     //Query the Map from local Email Storage
     const localMails = await getArchive(); //Get Local Email Storage
     await checkSync(localMails, emailIDList); //This Part shall have a Global Parsed List of Mails.
 
+    await pop3.QUIT();
+
+    socket.emit('progress-sync-msg', "Uploading attachment to B2");
     if (localMails) {
 
         let totalMsg = 'Synced';
@@ -600,6 +624,7 @@ router.get('/sync-db', async (req, res) => {
             //Send it to MonGO!
             let db_res = await sendToMonGo(req, res, b2, parsedMail); //Shall Save Link to attachment
             let msg = 'Email Synced: ' + i + ' UID: ' + parsedMail.UID;
+            socket.emit('progress-sync-msg', msg);
 
 
             if (db_res.status !== 201) {
@@ -610,12 +635,39 @@ router.get('/sync-db', async (req, res) => {
                 totalCode = result[i].return_code;
             }
 
+            socket.emit('progress-sync-num', { progress: (i + 1) / localParsedList.length });
         }
+
+        socket.emit('progress-sync-msg', "Save Hash File List to Mongo");
+        //Save Hashed file List to Mongo
+        const db = await connectToDB();
+        const uploadedFiles = getUploadedFiles();
+        // Get the keys of the uploadedFiles object
+        const keys = Object.keys(uploadedFiles);
+
+        for (let key of keys) {
+            // Define your query criteria. This should uniquely identify the document.
+            const query = { hash: key };
+
+            const content = uploadedFiles[key];
+
+            // Define the changes to be made. In this case, we replace the entire document with the new data.
+            const update = { $set: { hash: key, fileID: content.fileID, UID: content.UID, index: content.index } };
+
+            // Set the 'upsert' option to true
+            const options = { upsert: true };
+
+            const result = await db.collection('records').updateOne(query, update, options);
+
+            console.log(result);
+        }
+
+        socket.emit('progress-sync-msg', "Sync db completed");
         return res.json({ message: totalMsg, return_code: totalCode, errorLog: result });
 
     } else { //There are no local Storage
 
-        console.log("We Don't Have it " + query);
+        console.log("We Don't Have Local Storage");
         //Sync Files!
         console.log("Please Sync to Local First");
     }
