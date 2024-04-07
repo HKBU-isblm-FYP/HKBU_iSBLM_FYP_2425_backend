@@ -6,6 +6,9 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+//FIX SPA HISTORY
+var history = require('connect-history-api-fallback');
+
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var imapRouter = require('./routes/imap');
@@ -19,6 +22,14 @@ var md2jsonRouter = require('./routes/md2json'); // TBD
 var textbooksRouter = require('./routes/textbooks'); // For Serving textbooks in MD format.
 
 var app = express();
+//FIX SPA HISTORY
+// app.use(history());
+app.use(history({
+  rewrites: [
+    { from: /\/api\/.*$/, to: function (context) { return context.parsedUrl.pathname; } }
+  ]
+}));
+
 
 //WS UPGRADE
 const { createServer } = require("http");
@@ -40,6 +51,7 @@ httpServer.listen(3000, () => { // NEED TO DISABLE WWW -> Server.listen code
   console.log('listening on *:3000');
 });
 //WS
+
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -76,6 +88,9 @@ app.use('/api/textbooks', passport.authenticate('bearer', { session: false }), t
 
 //Serve static upload files;
 app.use('/api/uploads', express.static('uploads')); // THE MYTH IS THAT WE HAVE NO PATHREWRITE IN VUE, so each proxy call to /api proxy, still call the /api route in Express.
+
+// Serve the static files from the dist directory
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

@@ -1,0 +1,1 @@
+import{r as e,o as r,c as o,a as t}from"./index-B-03LEUy.js";const a=t("h1",null,"Authorization Error",-1),s=[a],i={__name:"ErrorView",setup(c){return e(!1),(n,_)=>(r(),o("div",null,s))}};export{i as default};

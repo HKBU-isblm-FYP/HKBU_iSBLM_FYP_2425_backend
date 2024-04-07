@@ -63,6 +63,11 @@ json2md.converters.position = function (input) {
     return ``;
 };
 
+json2md.converters.createdAt = function (input) {
+    // return `## Title\n\n${input}`;
+    return ``;
+};
+
 json2md.converters.updatedAt = function (input) {
     // return `## Title\n\n${input}`;
     return ``;
@@ -71,6 +76,10 @@ json2md.converters.updatedAt = function (input) {
 json2md.converters.updatedBy = function (input) {
     // return `## Title\n\n${input}`;
     return ``;
+};
+
+json2md.converters.md = function (input) {
+    return input;
 };
 
 module.exports = { json2md };

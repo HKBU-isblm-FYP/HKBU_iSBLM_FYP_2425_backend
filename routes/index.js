@@ -1,13 +1,14 @@
 var express = require('express');
 var router = express.Router();
+const path = require('path'); // Import the path module
 
 const { generateToken } = require('../utils/auth');
-
 const { connectToDB, ObjectId } = require('../utils/db');
 
 /* GET home page. */
 router.get('/', function (req, res, next) {
-  res.render('index', { title: 'Express' });
+  // res.render('index', { title: 'Express' });
+  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html')); // Send the index.html file from the dist directory
 });
 
 router.post('/api/login', async function (req, res, next) {
