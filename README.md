@@ -1,5 +1,10 @@
-# GCAP3055-backend
+# HKBU_iSBLM_FYP_2425_backend
 
-DEPLOYED to K8S with WebHookd (v1.16.0):
+## Instruction
+```sh
+npm install
+```
 
-site: https://gcap3055-backend.f0218168.hkbu.app/
+```sh
+npm start
+```
