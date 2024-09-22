@@ -15,7 +15,7 @@ var imapRouter = require('./routes/imap');
 var pop3Router = require('./routes/pop3');
 var lessonsRouter = require('./routes/lessons');
 var projectsRouter = require('./routes/projects');
-
+var modulesRouter = require('./routes/modules');
 var json2mdRouter = require('./routes/json2md'); //For Converting JSON to MD
 var md2jsonRouter = require('./routes/md2json'); // TBD
 
@@ -85,6 +85,7 @@ app.use('/api/projects', passport.authenticate('bearer', { session: false }), pr
 app.use('/api/json2md', passport.authenticate('bearer', { session: false }), json2mdRouter);
 app.use('/api/md2json', passport.authenticate('bearer', { session: false }), md2jsonRouter);
 app.use('/api/textbooks', passport.authenticate('bearer', { session: false }), textbooksRouter);
+app.use('/api/modules', passport.authenticate('bearer', { session: false }), modulesRouter);
 
 //Serve static upload files;
 app.use('/api/uploads', express.static('uploads')); // THE MYTH IS THAT WE HAVE NO PATHREWRITE IN VUE, so each proxy call to /api proxy, still call the /api route in Express.
