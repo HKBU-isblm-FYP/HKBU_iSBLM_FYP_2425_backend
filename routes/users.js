@@ -98,4 +98,18 @@ router.get('/detail/:id', async (req, res) => {
   }
 });
 
+// Get Supervisored Students by Sup's ID
+router.get('/supervised-students/:supervisorId', async (req, res) => {
+  const db = await connectToDB();
+  try {
+    const supervisorId = req.params.supervisorId;
+    const students = await db.collection('users').find({ supervisor: new ObjectId(supervisorId) }).toArray();
+    res.json({students: students});
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
+});
+
+
 module.exports = router;
