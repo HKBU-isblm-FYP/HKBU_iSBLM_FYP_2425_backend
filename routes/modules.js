@@ -35,4 +35,17 @@ router.get('/:id', async function (req, res, next) {
     res.json(module);
 });
 
+router.put('/meetings/update/:id', async function (req, res, next) {
+    const moduleid = req.params.id;
+    const db = await connectToDB();
+    try {
+        const result = await db.collection('modules')
+            .updateOne({ _id: new ObjectId(moduleid) }, { $set: { meetings: req.body.meetings } });
+        res.json(result);
+    }
+    catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
 module.exports = router;
