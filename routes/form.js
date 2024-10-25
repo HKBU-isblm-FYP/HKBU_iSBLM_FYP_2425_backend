@@ -2,6 +2,17 @@ var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
 
+const nodemailer = require('nodemailer');
+
+// Configure Nodemailer
+let transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'isblmmail@gmail.com',
+        pass: 'iSBLMmail123'
+    }
+});
+
 router.post('/declaration/submit', async (req, res, next) => {
     const db = await connectToDB();
     try {
@@ -14,6 +25,28 @@ router.post('/declaration/submit', async (req, res, next) => {
         req.body.approval = { supervisor: false, head: false };
         req.body.status = 'pending';
         const result = await db.collection('form').insertOne(req.body);
+
+        // Find the student's supervisor
+        const student = await db.collection('users').findOne({ _id: new ObjectId(req.body.studentID) });
+        const supervisor = await db.collection('users').findOne({ _id: new ObjectId(student.supervisor) });
+
+        console.log(supervisor.email);
+        // Send an email to the supervisor
+        let mailOptions = {
+            from: 'isblmmail@gmail.com',
+            to: 'fungtroy63@gmail.com',
+            subject: 'New Declaration Form Submitted',
+            text: 'A new declaration form has been submitted. Please review it.'
+        };
+
+        transporter.sendMail(mailOptions, function(error, info){
+            if (error) {
+                console.log(error);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+        });
+
         res.json(result);
     }
     catch (err) {
