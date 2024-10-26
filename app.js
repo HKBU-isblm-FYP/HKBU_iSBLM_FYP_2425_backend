@@ -16,12 +16,12 @@ var pop3Router = require('./routes/pop3');
 var lessonsRouter = require('./routes/lessons');
 var projectsRouter = require('./routes/projects');
 var modulesRouter = require('./routes/modules');
+var gptRouter = require('./routes/gpt');
 var json2mdRouter = require('./routes/json2md'); //For Converting JSON to MD
 var md2jsonRouter = require('./routes/md2json'); // TBD
 var formRouter = require('./routes/form'); // For Serving form data.
 var textbooksRouter = require('./routes/textbooks'); // For Serving textbooks in MD format.
-var studyplansRouter = require('./routes/studyplans');
-
+var studyplansRouter = require('./routes/studyplans'); 
 var dashboardRouter = require('./routes/dashboard'); // For Serving dashboard data.
 
 var app = express();
@@ -89,6 +89,7 @@ app.use('/api/json2md', passport.authenticate('bearer', { session: false }), jso
 app.use('/api/md2json', passport.authenticate('bearer', { session: false }), md2jsonRouter);
 app.use('/api/textbooks', passport.authenticate('bearer', { session: false }), textbooksRouter);
 app.use('/api/modules', passport.authenticate('bearer', { session: false }), modulesRouter);
+app.use('/api/gpt', passport.authenticate('bearer', { session: false }), gptRouter);
 app.use('/api/form', passport.authenticate('bearer', { session: false }), formRouter);
 app.use('/api/dashboard', passport.authenticate('bearer', { session: false }), dashboardRouter);
 //Serve static upload files;
