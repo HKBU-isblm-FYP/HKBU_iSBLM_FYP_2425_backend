@@ -3,6 +3,8 @@ const { MongoClient, ObjectId } = require('mongodb');
 process.env.MONGODB_URI = 'mongodb+srv://20218168:ezotpsv1pUAqFlP4@emails.mkowmvt.mongodb.net/?retryWrites=true&w=majority';
 // process.env.MONGODB_URI = 'mongodb://<username>:<password>@<endpoint>.documents.azure.com:10255/?ssl=true';
 
+//url: mongodb+srv://20218168:ezotpsv1pUAqFlP4@emails.mkowmvt.mongodb.net/
+
 ///Conn str password: <password>
 //API - key: SqBvnLw7k4c3Ogotc3UIiSLiaS0M3wJ3bV2wetb6O4nJsTHVu0Z4d2kFITIVAl2p
 
