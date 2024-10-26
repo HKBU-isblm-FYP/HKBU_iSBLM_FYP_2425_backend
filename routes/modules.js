@@ -35,12 +35,69 @@ router.get('/:id', async function (req, res, next) {
     res.json(module);
 });
 
-router.put('/meetings/update/:id', async function (req, res, next) {
+router.put('/meetings/delete/:id', async function (req, res, next) {
     const moduleid = req.params.id;
     const db = await connectToDB();
     try {
         const result = await db.collection('modules')
             .updateOne({ _id: new ObjectId(moduleid) }, { $set: { meetings: req.body.meetings } });
+        res.json(result);
+    }
+    catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+
+
+router.put('/meetings/add/:id', async function (req, res, next) {
+    const moduleid = req.params.id;
+    const newMeeting = req.body.newMeeting; // Assuming the new meeting object is in req.body.newMeeting
+    newMeeting.meetingID = new ObjectId(); // Generate a new ObjectId for meetingID
+    const db = await connectToDB();
+    try {
+        const result = await db.collection('modules')
+            .updateOne(
+                { _id: new ObjectId(moduleid) },
+                { $push: { meetings: newMeeting } }
+            );
+        res.json(result);
+    }
+    catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+
+router.put('/meetings/update/:id', async function (req, res, next) {
+    const moduleid = req.params.id;
+    const meetingID = req.body.meetingID;
+    const updatedMeeting = req.body.updatedMeeting;
+    const db = await connectToDB();
+    try {
+        const result = await db.collection('modules')
+            .updateOne(
+                { _id: new ObjectId(moduleid), "meetings.meetingID": new ObjectId(meetingID) },
+                { $set: { "meetings.$": updatedMeeting } }
+            );
+        res.json(result);
+    }
+    catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+router.put('/meetings/weekly/rate/:id', async function (req, res, next) {
+    const moduleid = req.params.id;
+    const meetingID = req.body.meetingID;
+    const ratings = req.body.ratings;
+    const db = await connectToDB();
+    try {
+        const result = await db.collection('modules')
+            .updateOne(
+                { _id: new ObjectId(moduleid), "meetings.meetingID": new ObjectId(meetingID) },
+                { $set: { "meetings.$.ratings": ratings } }
+            );
         res.json(result);
     }
     catch (err) {
