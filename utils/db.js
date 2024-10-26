@@ -14,7 +14,6 @@ if (!process.env.MONGODB_URI) {
 // Connect to MongoDB
 async function connectToDB() {
     const client = await MongoClient.connect(process.env.MONGODB_URI);
-    // const db = client.db('GCAP3056DB');
     const db = client.db('iSBLM');
     db.client = client;
     return db;
