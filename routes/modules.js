@@ -104,14 +104,13 @@ router.put('/meetings/add/:id', async function (req, res, next) {
 
 router.put('/meetings/update/:id', async function (req, res, next) {
     const moduleid = req.params.id;
-    const meetingID = req.body.meetingID;
-    const updatedMeeting = req.body.updatedMeeting;
+    const updatedMeetings = req.body.meetings;
     const db = await connectToDB();
     try {
         const result = await db.collection('modules')
             .updateOne(
-                { _id: new ObjectId(moduleid), "meetings.meetingID": new ObjectId(meetingID) },
-                { $set: { "meetings.$": updatedMeeting } }
+                { _id: new ObjectId(moduleid) },
+                { $set: { meetings: updatedMeetings } }
             );
             return res.json(result);
     }
