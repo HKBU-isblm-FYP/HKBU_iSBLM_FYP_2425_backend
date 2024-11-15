@@ -81,6 +81,26 @@ router.get('/all', async (req, res) => {
   }
 });
 
+
+router.get('/all/form', async (req, res) => {
+  const db = await connectToDB();
+  try {
+    const id = req.query.supervisor || '';
+    let query = {};
+    if (id) {
+      query.supervisor = new ObjectId(id);
+    }
+    const users = await db.collection('users').find(query, {
+      projection: { _id: 1, email: 1, name: 1 }
+    }).toArray();
+
+    res.json({ users: users });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
+});
+
 // Get User by ID
 router.get('/detail/:id', async (req, res) => {
   const db = await connectToDB();

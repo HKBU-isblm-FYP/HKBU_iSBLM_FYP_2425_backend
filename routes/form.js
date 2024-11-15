@@ -22,7 +22,7 @@ router.post('/declaration/submit', async (req, res, next) => {
             return res.status(400).json({ error: 'Invalid studentID' });
         }
         req.body.type = 'Declaration Form';
-        req.body.approval = { supervisor: false, head: false };
+        req.body.approval = { supervisor: false, head: false, adm1: false, adm2: false };
         req.body.status = 'pending';
         const result = await db.collection('form').insertOne(req.body);
 
@@ -39,7 +39,7 @@ router.post('/declaration/submit', async (req, res, next) => {
             text: 'A new declaration form has been submitted. Please review it.'
         };
 
-        transporter.sendMail(mailOptions, function(error, info){
+        transporter.sendMail(mailOptions, function (error, info) {
             if (error) {
                 console.log(error);
             } else {
@@ -55,16 +55,30 @@ router.post('/declaration/submit', async (req, res, next) => {
     }
 });
 
-//for getting the forms from supervisor
 router.put('/all', async (req, res, next) => {
     const db = await connectToDB();
     try {
         req.body.ids = req.body.ids.map(id => new ObjectId(id));
-        const forms = await db.collection('form').find({
-            studentID: { $in: req.body.ids },
-            status: { $ne: 'approved' }
-        }).toArray();
-        res.json(forms);
+        const role = req.body.role;
+        if (role == 'supervisor') {
+            const forms = await db.collection('form').find({
+                studentID: { $in: req.body.ids },
+            }).toArray();
+            res.json(forms);
+        } else if (role == 'head') {
+            const forms = await db.collection('form').find({
+                'approval.supervisor.approval': { $exists: true },
+                'approval.supervisor.approval': "approved"
+            }).toArray();
+            console.log(forms);
+            res.json(forms);
+        } else if (role == 'admin') {
+            const forms = await db.collection('form').find({
+                'approval.supervisor.approval': 'approved',
+                'approval.head.approval': 'approved'
+            }).toArray();
+            res.json(forms);
+        }
     } catch (err) {
         console.log(err);
         return res.status(500).json({ error: err.toString() });
@@ -98,19 +112,44 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
         const student = await db.collection('users').findOne({ _id: new ObjectId(form.studentID) });
 
         // Check if the supervisor of the user matches the uid
-        if (student.supervisor.toString() !== uid) {
-            return res.status(403).json({ error: 'Unauthorized' });
+        if (student.supervisor.toString() == uid) {
+            const supervisor = { approval: req.body.approval, reason: req.body.reason };
+
+            const updatedForm = await db.collection('form').updateOne(
+                { _id: new ObjectId(formid) },
+                { $set: { "approval.supervisor": supervisor } }
+            );
+        } else {
+            const user = await db.collection('users').findOne({ _id: new ObjectId(uid) });
+            if (user.isHead) {
+                const head = { approval: req.body.approval, reason: req.body.reason };
+
+                const updatedForm = await db.collection('form').updateOne(
+                    { _id: new ObjectId(formid) },
+                    { $set: { "approval.head": head } }
+                );
+
+            } if (user.isAdmin) {
+                const admin = { approval: req.body.approval, reason: req.body.reason };
+
+                // Fetch the current form to check adm1.approval
+                const form = await db.collection('form').findOne({ _id: new ObjectId(formid) });
+
+                if (form.approval.adm1.approval === 'approved') {
+                    await db.collection('form').updateOne(
+                        { _id: new ObjectId(formid) },
+                        { $set: { "approval.adm2": admin } }
+                    );
+                } else {
+                    await db.collection('form').updateOne(
+                        { _id: new ObjectId(formid) },
+                        { $set: { "approval.adm1": admin } }
+                    );
+                }
+            }
+            // If everything is fine, return the updated form
+            res.json(updatedForm);
         }
-
-        const supervisor = {approval : req.body.approval, reason: req.body.reason};
-
-        const updatedForm = await db.collection('form').updateOne(
-            { _id: new ObjectId(formid) },
-            { $set: { "approval.supervisor": supervisor } }
-        );
-
-        // If everything is fine, return the updated form
-        res.json(updatedForm);
     }
     catch (err) {
         console.log(err);
