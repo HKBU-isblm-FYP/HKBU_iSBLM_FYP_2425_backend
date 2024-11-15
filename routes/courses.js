@@ -54,8 +54,15 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
             const title = $(element).find('h5').text().trim();
             const prerequisite = $(element).find('dd').text().trim();
             const description = $(element).find('.detail p').text().trim();
-            const courseCode = title.match(/^([A-Z]{4}\d{4})/); // This will match a pattern like COMP4005
+            // const courseCode = title.match(/^([A-Z]{4}\d{4})/); // This will match a pattern like COMP4005
+            const courseCode = title.match(/^([A-Z]{4}\d{4})/) ? title.match(/^([A-Z]{4}\d{4})/)[0] : null;
 
+            //Handle units / unit storing to DB.
+            let units = title.match(/\((\d+) units\)$/) ? Number(title.match(/\((\d+) units\)$/)[1]) : null;
+            if (units === null) {
+                units = title.match(/\((\d+) unit\)$/) ? Number(title.match(/\((\d+) unit\)$/)[1]) : null;
+            }
+            // const units = title.match(/\((\d+) unit\(s\)\)$/) ? Number(title.match(/\((\d+) unit\(s\)\)$/)[1]) : null;
 
             const course = {
                 courseCode,
@@ -63,7 +70,8 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
                 prerequisite,
                 description,
                 years: years,
-               creationDate: new Date(),
+                units,
+                creationDate: new Date(),
             };
 
             // Check if the course already exists in the database
@@ -78,9 +86,11 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
                 console.log(course);
 
                 db.collection('courses').insertOne(course);
-
                 globalCourse.push(course);
+            } else {
+                db.collection('courses').updateOne({ title: course.title }, { $set: course });
             }
+
         });
 
         res.json({ message: 'Courses fetched and stored in the database', course: globalCourse });
