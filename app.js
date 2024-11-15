@@ -14,6 +14,7 @@ var usersRouter = require('./routes/users');
 var imapRouter = require('./routes/imap');
 var pop3Router = require('./routes/pop3');
 var lessonsRouter = require('./routes/lessons');
+var coursesRouter = require('./routes/courses');
 var projectsRouter = require('./routes/projects');
 var modulesRouter = require('./routes/modules');
 var gptRouter = require('./routes/gpt');
@@ -84,6 +85,7 @@ app.use('/api/users', passport.authenticate('bearer', { session: false }), users
 app.use('/api/imap', passport.authenticate('bearer', { session: false }), imapRouter);
 app.use('/api/pop3', passport.authenticate('bearer', { session: false }), isAdmin, pop3Router);
 app.use('/api/lessons', passport.authenticate('bearer', { session: false }), lessonsRouter);
+app.use('/api/courses', passport.authenticate('bearer', { session: false }), coursesRouter);
 app.use('/api/projects', passport.authenticate('bearer', { session: false }), projectsRouter);
 app.use('/api/json2md', passport.authenticate('bearer', { session: false }), json2mdRouter);
 app.use('/api/md2json', passport.authenticate('bearer', { session: false }), md2jsonRouter);
