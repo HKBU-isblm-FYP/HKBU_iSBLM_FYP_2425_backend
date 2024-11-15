@@ -115,20 +115,31 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
         if (student.supervisor.toString() == uid) {
             const supervisor = { approval: req.body.approval, reason: req.body.reason };
 
-            const updatedForm = await db.collection('form').updateOne(
+            const updateFields = { "approval.supervisor": supervisor };
+            if (req.body.approval === 'disapproved') {
+                updateFields.status = 'disapproved';
+            }
+
+            await db.collection('form').updateOne(
                 { _id: new ObjectId(formid) },
-                { $set: { "approval.supervisor": supervisor } }
+                { $set: updateFields }
             );
         } else {
             const user = await db.collection('users').findOne({ _id: new ObjectId(uid) });
             if (user.isHead) {
-                const head = { approval: req.body.approval, reason: req.body.reason };
+                if (form.approval.supervisor.approval === 'approved') {
+                    const head = { approval: req.body.approval, reason: req.body.reason };
 
-                const updatedForm = await db.collection('form').updateOne(
-                    { _id: new ObjectId(formid) },
-                    { $set: { "approval.head": head } }
-                );
+                    const updateFields = { "approval.head": head };
+                    if (req.body.approval === 'disapproved') {
+                        updateFields.status = 'disapproved';
+                    }
 
+                    await db.collection('form').updateOne(
+                        { _id: new ObjectId(formid) },
+                        { $set: updateFields }
+                    );
+                }
             } if (user.isAdmin) {
                 const admin = { approval: req.body.approval, reason: req.body.reason };
 
@@ -136,20 +147,31 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                 const form = await db.collection('form').findOne({ _id: new ObjectId(formid) });
 
                 if (form.approval.adm1.approval === 'approved') {
+                    const updateFields = { "approval.adm2": admin, "status": "approved" };
+                    if (req.body.approval === 'disapproved') {
+                        updateFields.status = 'disapproved';
+                    }
+
                     await db.collection('form').updateOne(
                         { _id: new ObjectId(formid) },
-                        { $set: { "approval.adm2": admin } }
+                        { $set: updateFields }
                     );
                 } else {
+                    const updateFields = { "approval.adm1": admin };
+                    if (req.body.approval === 'disapproved') {
+                        updateFields.status = 'disapproved';
+                    }
+
                     await db.collection('form').updateOne(
                         { _id: new ObjectId(formid) },
-                        { $set: { "approval.adm1": admin } }
+                        { $set: updateFields }
                     );
                 }
             }
-            // If everything is fine, return the updated form
-            res.json(updatedForm);
         }
+        // If everything is fine, return the updated form
+        const updatedForm = await db.collection('form').findOne({ _id: new ObjectId(formid) });
+        res.json(updatedForm);
     }
     catch (err) {
         console.log(err);
