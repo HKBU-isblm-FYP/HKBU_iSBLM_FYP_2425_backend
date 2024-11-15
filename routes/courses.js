@@ -7,17 +7,18 @@ const { connectToDB } = require('../utils/db');
 var years = '2023-2024';
 var prefix = 'COMP4';
 
-
 // const baseURL = `https://handbook.ar.hkbu.edu.hk/${years}/course/${prefix}`;
 // const baseURL = 'https://handbook.ar.hkbu.edu.hk/2023-2024/course/COMP4';
 
 router.get('/getCourses/:courseCode', async function (req, res, next) {
     const db = await connectToDB();
 
+    console.log('Enter get Courses');
     const courseCode = req.params.courseCode;
 
     try {
-        const courses = await db.collection('courses').find({ courseCode: courseCode }).toArray();
+        // const courses = await db.collection('courses').find({ courseCode: courseCode }).toArray();
+        const courses = await db.collection('courses').find({ courseCode: { $regex: `^${courseCode}` } }).toArray();
 
         if (courses.length > 0) {
             res.json({ courses: courses });
