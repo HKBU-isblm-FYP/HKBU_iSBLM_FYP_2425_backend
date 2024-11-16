@@ -12,20 +12,16 @@ var prefix = 'COMP4';
 
 router.get('/getCourses/:courseCode', async function (req, res, next) {
     const db = await connectToDB();
-
     console.log('Enter get Courses');
     const courseCode = req.params.courseCode;
-
     try {
         // const courses = await db.collection('courses').find({ courseCode: courseCode }).toArray();
         const courses = await db.collection('courses').find({ courseCode: { $regex: `^${courseCode}` } }).toArray();
-
         if (courses.length > 0) {
             res.json({ courses: courses });
         } else {
             res.status(404).json({ message: 'No courses found with that code' });
         }
-
     } catch (err) {
         console.log(err);
         return res.status(500).json({ error: err.toString() });
