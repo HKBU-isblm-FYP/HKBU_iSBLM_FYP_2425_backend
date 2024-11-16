@@ -18,9 +18,11 @@ router.get('/getCourses/:years/:prefix', async function (req, res, next) {
     try {
         // const courses = await db.collection('courses').find({ courseCode: courseCode }).toArray();
         const courses = await db.collection('courses').find({
-            courseCode: { $regex: `^${courseCode}` },
-            years: { $regex: `^${years}` }
+            courseCode: { $regex: `^${courseCode}`, $options: 'i' },
+            years: years
         }).toArray();
+        // console.log(courses);
+
         if (courses.length > 0) {
             res.json({ courses: courses });
         } else {
@@ -34,10 +36,9 @@ router.get('/getCourses/:years/:prefix', async function (req, res, next) {
 
 
 router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
-
     const db = await connectToDB();
 
-    var globalCourse = [];
+    const newlyAddedCourses = [];
 
     const years = req.params.years || '2023-2024';
     const prefix = req.params.prefix || 'COMP';
@@ -51,7 +52,7 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
 
         const existingCourses = await db.collection('courses').find({}).toArray();
 
-        $('.course-item').each((i, element) => {
+        const coursePromises = $('.course-item').map(async (i, element) => {
             const title = $(element).find('h5').text().trim();
             const prerequisite = $(element).find('dd').text().trim();
             const description = $(element).find('.detail p').text().trim();
@@ -77,6 +78,7 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
 
             // Check if the course already exists in the database
             const courseExists = existingCourses.some(existingCourse =>
+                existingCourse.courseCode === course.courseCode &&
                 existingCourse.title === course.title &&
                 existingCourse.prerequisite === course.prerequisite &&
                 existingCourse.description === course.description &&
@@ -84,18 +86,19 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
             );
 
             if (!courseExists) {
-                console.log(course);
-
-                db.collection('courses').insertOne(course);
-                globalCourse.push(course);
+                console.log('adding', course);
+                await db.collection('courses').insertOne(course);
+                newlyAddedCourses.push({ course });
             } else {
-                db.collection('courses').updateOne({ title: course.title }, { $set: course });
+                await db.collection('courses').updateOne({ title: course.title }, { $set: course });
             }
-
         });
 
-        res.json({ message: 'Courses fetched and stored in the database', course: globalCourse });
+        await Promise.all(coursePromises);
 
+        console.log(newlyAddedCourses);
+
+        res.json({ message: 'Courses fetched and stored in the database', newlyAddedCourses });
     } catch (err) {
         console.log(err);
         return res.status(500).json({ error: err.toString() });
