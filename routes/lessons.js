@@ -105,6 +105,16 @@ router.post('/create', upload.none(), async (req, res) => {
 
   // Insert the lesson data into MongoDB
   const db = await connectToDB();
+
+  const existingLesson = await db.collection('lessons').findOne({
+    title: lesson.title,
+    isPublic: lesson.isPublic
+  });
+
+  if (existingLesson) {
+    return res.status(400).json({ message: 'Lesson already exists' });
+  }
+
   try {
     const result = await db.collection('lessons').insertOne(lesson);
     const id = result.insertedId;
