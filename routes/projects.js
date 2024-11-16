@@ -99,8 +99,12 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+/**
+ * Will need to restrucutre the study plan to accomodate the Y1S1, Y2S2 structure..
+ */
 router.post('/create', async (req, res) => {
   const project = req.body;
+  console.log(project);
 
   // project.progress.forEach(x => {
   //   x.chapterId = new ObjectId(x.id);
@@ -109,20 +113,46 @@ router.post('/create', async (req, res) => {
   //   delete title;
   // })
 
+  let tmp = [];
+
   project.progress.forEach((x, i) => {
-    project.progress[i] = {
-      chapterId: new ObjectId(x.id),
-      title: x.title,
-      isCompleted: false,
+
+    // console.log(x);
+    let year = x.year;
+    let semester = x.semester;
+
+    x.data.forEach(e => {
+      e.year = year;
+      e.semester = semester;
+      e.chapterId = new ObjectId(e.id);
+      tmp.push(e);
+      // project.progress[i].data.push(e);
+      // console.log(e);
+    })
+
+    // project.progress[i] = {
+    //   chapterId: new ObjectId(x.id),
+    //   title: x.title,
+    //   isCompleted: false,
+    // }
+  })
+
+  // console.log(tmp);
+  project.progress = tmp; //get the Flatten data;
+  project.admissionYear = project.member[0].admissionYear; 
+  project.year = project.member[0].year; 
+  project.major = project.member[0].major; 
+  project.semester = project.member[0].semester; 
+
+  project.member.forEach((x, i) => {
+    project.member[i] = {
+      id: new ObjectId(x.id),
+      name: x.name,
+      sid: x.sid,
     }
   })
 
-  project.member.forEach((x, i) => {
-    project.member[i] = { 
-      id: new ObjectId(x.id) ,
-      name: x.name,
-    }
-  })
+
 
   const db = await connectToDB();
   // Insert the project data into MongoDB
