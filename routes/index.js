@@ -21,6 +21,12 @@ router.post('/api/login', async function (req, res, next) {
       return;
     }
 
+    // check if the password matches
+    if (req.body.password !== user.password) {
+      res.status(401).json({ message: 'Invalid password' });
+      return;
+    }
+
     delete user.ip_address;
     delete user.password; //remove password before send out.
 
