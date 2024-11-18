@@ -1,17 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
-
-const nodemailer = require('nodemailer');
-
-// Configure Nodemailer
-let transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'isblmmail@gmail.com',
-        pass: 'iSBLMmail123'
-    }
-});
+const { sendEmail } = require('../utils/emailServices.js');
 
 router.post('/declaration/submit', async (req, res, next) => {
     const db = await connectToDB();
@@ -124,6 +114,10 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                 { _id: new ObjectId(formid) },
                 { $set: updateFields }
             );
+
+            // Notify the head
+            const head = await db.collection('users').findOne({ isHead: true });
+            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Approval Needed', 'A form has been approved by the supervisor and needs your approval.');
         } else {
             const user = await db.collection('users').findOne({ _id: new ObjectId(uid) });
             if (user.isHead) {
@@ -139,6 +133,10 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                         { _id: new ObjectId(formid) },
                         { $set: updateFields }
                     );
+
+                    // Notify the admin
+                    const admin = await db.collection('users').findOne({ isAdmin: true });
+                    await sendEmail("21222843@life.hkbu.edu.hk", 'Form Approval Needed', 'A form has been approved by the head and needs your approval.');
                 }
             } if (user.isAdmin) {
                 const admin = { approval: req.body.approval, reason: req.body.reason };
@@ -169,8 +167,31 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                 }
             }
         }
+
         // If everything is fine, return the updated form
         const updatedForm = await db.collection('form').findOne({ _id: new ObjectId(formid) });
+        // Send email notifications
+        if (req.body.approval === 'approved') {
+            const approver = await db.collection('users').findOne({ _id: new ObjectId(uid) });
+            const approverName = approver.name || 'Unknown';
+            const approverRole = approver.role || 'Unknown role';
+
+            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been ${req.body.approval} by ${approverName} (${approverRole}).`);
+        } else {
+            const approver = await db.collection('users').findOne({ _id: new ObjectId(uid) });
+            const approverName = approver.name || 'Unknown';
+            const approverRole = approver.role || 'Unknown role';
+
+            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been disapproved by ${approverName} (${approverRole}). Reason: ${req.body.reason}`);
+            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been disapproved by ${approverName} (${approverRole}). Reason: ${req.body.reason}`);
+        }
+
+
+        if (form.status === 'approved') {
+            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been approved by all approvers.`);
+            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been approved by all approvers.`);
+        }
+
         res.json(updatedForm);
     }
     catch (err) {

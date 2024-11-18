@@ -24,7 +24,7 @@ var formRouter = require('./routes/form'); // For Serving form data.
 var textbooksRouter = require('./routes/textbooks'); // For Serving textbooks in MD format.
 var studyplansRouter = require('./routes/studyplans'); 
 var dashboardRouter = require('./routes/dashboard'); // For Serving dashboard data.
-
+var templateRouter = require('./routes/template'); // For Serving template data.
 var app = express();
 //FIX SPA HISTORY
 // app.use(history());
@@ -97,6 +97,7 @@ app.use('/api/dashboard', passport.authenticate('bearer', { session: false }), d
 //Serve static upload files;
 app.use('/api/uploads', express.static('uploads')); // THE MYTH IS THAT WE HAVE NO PATHREWRITE IN VUE, so each proxy call to /api proxy, still call the /api route in Express.
 app.use('/api/studyplans', passport.authenticate('bearer', { session: false }), studyplansRouter);
+app.use('/api/template', passport.authenticate('bearer', { session: false }), templateRouter);
 
 // Serve the static files from the dist directory
 app.use(express.static(path.join(__dirname, 'dist')));
