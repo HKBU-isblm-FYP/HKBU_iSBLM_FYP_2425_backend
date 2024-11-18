@@ -10,22 +10,24 @@ var prefix = 'COMP4';
 // const baseURL = `https://handbook.ar.hkbu.edu.hk/${years}/course/${prefix}`;
 // const baseURL = 'https://handbook.ar.hkbu.edu.hk/2023-2024/course/COMP4';
 
-router.get('/getCourses/:courseCode', async function (req, res, next) {
+router.get('/getCourses/:years/:prefix', async function (req, res, next) {
     const db = await connectToDB();
-
     console.log('Enter get Courses');
-    const courseCode = req.params.courseCode;
-
+    const years = req.params.years;
+    const courseCode = req.params.prefix;
     try {
         // const courses = await db.collection('courses').find({ courseCode: courseCode }).toArray();
-        const courses = await db.collection('courses').find({ courseCode: { $regex: `^${courseCode}` } }).toArray();
+        const courses = await db.collection('courses').find({
+            courseCode: { $regex: `^${courseCode}`, $options: 'i' },
+            years: years
+        }).toArray();
+        // console.log(courses);
 
         if (courses.length > 0) {
             res.json({ courses: courses });
         } else {
             res.status(404).json({ message: 'No courses found with that code' });
         }
-
     } catch (err) {
         console.log(err);
         return res.status(500).json({ error: err.toString() });
@@ -34,10 +36,9 @@ router.get('/getCourses/:courseCode', async function (req, res, next) {
 
 
 router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
-
     const db = await connectToDB();
 
-    var globalCourse = [];
+    const newlyAddedCourses = [];
 
     const years = req.params.years || '2023-2024';
     const prefix = req.params.prefix || 'COMP';
@@ -51,7 +52,7 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
 
         const existingCourses = await db.collection('courses').find({}).toArray();
 
-        $('.course-item').each((i, element) => {
+        const coursePromises = $('.course-item').map(async (i, element) => {
             const title = $(element).find('h5').text().trim();
             const prerequisite = $(element).find('dd').text().trim();
             const description = $(element).find('.detail p').text().trim();
@@ -77,6 +78,7 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
 
             // Check if the course already exists in the database
             const courseExists = existingCourses.some(existingCourse =>
+                existingCourse.courseCode === course.courseCode &&
                 existingCourse.title === course.title &&
                 existingCourse.prerequisite === course.prerequisite &&
                 existingCourse.description === course.description &&
@@ -84,18 +86,19 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
             );
 
             if (!courseExists) {
-                console.log(course);
-
-                db.collection('courses').insertOne(course);
-                globalCourse.push(course);
+                console.log('adding', course);
+                await db.collection('courses').insertOne(course);
+                newlyAddedCourses.push({ course });
             } else {
-                db.collection('courses').updateOne({ title: course.title }, { $set: course });
+                await db.collection('courses').updateOne({ title: course.title }, { $set: course });
             }
-
         });
 
-        res.json({ message: 'Courses fetched and stored in the database', course: globalCourse });
+        await Promise.all(coursePromises);
 
+        console.log(newlyAddedCourses);
+
+        res.json({ message: 'Courses fetched and stored in the database', newlyAddedCourses });
     } catch (err) {
         console.log(err);
         return res.status(500).json({ error: err.toString() });

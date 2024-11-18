@@ -83,7 +83,7 @@ passport.use(new BearerStrategy(
 app.use('/', indexRouter);
 app.use('/api/users', passport.authenticate('bearer', { session: false }), usersRouter);
 app.use('/api/imap', passport.authenticate('bearer', { session: false }), imapRouter);
-app.use('/api/pop3', passport.authenticate('bearer', { session: false }), isAdmin, pop3Router);
+// app.use('/api/pop3', passport.authenticate('bearer', { session: false }), isAdmin, pop3Router); //Disable it cuz it overload da Cluster..
 app.use('/api/lessons', passport.authenticate('bearer', { session: false }), lessonsRouter);
 app.use('/api/courses', passport.authenticate('bearer', { session: false }), coursesRouter);
 app.use('/api/projects', passport.authenticate('bearer', { session: false }), projectsRouter);
