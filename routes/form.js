@@ -22,20 +22,7 @@ router.post('/declaration/submit', async (req, res, next) => {
 
         console.log(supervisor.email);
         // Send an email to the supervisor
-        let mailOptions = {
-            from: 'isblmmail@gmail.com',
-            to: 'fungtroy63@gmail.com',
-            subject: 'New Declaration Form Submitted',
-            text: 'A new declaration form has been submitted. Please review it.'
-        };
 
-        transporter.sendMail(mailOptions, function (error, info) {
-            if (error) {
-                console.log(error);
-            } else {
-                console.log('Email sent: ' + info.response);
-            }
-        });
 
         res.json(result);
     }
