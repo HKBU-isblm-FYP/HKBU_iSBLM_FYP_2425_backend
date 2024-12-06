@@ -80,93 +80,24 @@ router.get('/all', async (req, res) => {
     res.status(500).send({ message: 'Internal Server Error' });
   }
 });
-router.get('/students', async (req, res) => {
+router.get('/supervisors', async (req, res) => {
   const db = await connectToDB();
   try {
-    const search = req.query.search || '';
-    const id = req.query.supervisor || '';
-    const page = parseInt(req.query.page || '1');
-    const perPage = parseInt(req.query.perPage || '6');
+    const supervisors = await db.collection('users').find({ isSupervisor: true }).toArray();
 
-    let query = { isStudent: true };
-    if (search) {
-      query.name = { $regex: new RegExp(search, 'i') };
+    // Fetch students for each supervisor
+    for (let supervisor of supervisors) {
+      const students = await db.collection('users').find({ supervisor: supervisor._id, isStudent: true }).toArray();
+      supervisor.students = students.map(student => student.name);
     }
 
-    let pipeline = [
-      {
-        $match: {
-          isStudent: true,
-          ...(search && { name: { $regex: new RegExp(search, 'i') } })
-        }
-      },
-      {
-        $skip: (page - 1) * perPage
-      },
-      {
-        $limit: perPage
-      }
-    ];
-
-    if (id == '') {
-      const students = await db.collection('users').aggregate(pipeline).toArray();
-      let countPipeline = [
-        {
-          $match: {
-            isStudent: true,
-            ...(search && { name: { $regex: new RegExp(search, 'i') } })
-          }
-        },
-        {
-          $count: "total"
-        }
-      ];
-
-      const countResult = await db.collection('users').aggregate(countPipeline).toArray();
-      const totalUsers = countResult.length > 0 ? countResult[0].total : 0;
-      const totalPages = Math.ceil(totalUsers / perPage);
-
-      // Fetch supervisor names
-      for (let student of students) {
-        if (student.supervisor) {
-          const supervisor = await db.collection('users').findOne({ _id: new ObjectId(student.supervisor) });
-          student.supervisorName = supervisor ? supervisor.name : null;
-        }
-      }
-
-      res.json({ total_pages: totalPages, users: students, size: totalUsers, perPage: perPage });
-    } else {
-      const students = await db.collection('users').find({ supervisor: new ObjectId(id), isStudent: true }).toArray();
-      let countPipeline = [
-        {
-          $match: {
-            isStudent: true,
-            ...(search && { name: { $regex: new RegExp(search, 'i') } })
-          }
-        },
-        {
-          $count: "total"
-        }
-      ];
-      const countResult = await db.collection('users').aggregate(countPipeline).toArray();
-      const totalUsers = countResult.length > 0 ? countResult[0].total : 0;
-      const totalPages = Math.ceil(totalUsers / perPage);
-
-      // Fetch supervisor names
-      for (let student of students) {
-        if (student.supervisor) {
-          const supervisor = await db.collection('users').findOne({ _id: new ObjectId(student.supervisor) });
-          student.supervisorName = supervisor ? supervisor.name : null;
-        }
-      }
-
-      res.json({ total_pages: totalPages, users: students, size: totalUsers, perPage: perPage });
-    }
+    res.json({ supervisors: supervisors });
   } catch (err) {
     console.error(err);
     res.status(500).send({ message: 'Internal Server Error' });
   }
 });
+
 router.get('/all/form', async (req, res) => {
   const db = await connectToDB();
   try {
