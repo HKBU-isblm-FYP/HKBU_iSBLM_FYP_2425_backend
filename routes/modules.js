@@ -28,7 +28,14 @@ router.get('/:id', async function (req, res, next) {
     try {
         module = await db.collection('modules')
             .findOne({ _id: new ObjectId(moduleid) });
-            return res.json(module);
+        for (let i = 0; i < module.presentations.components.length; i++) {
+            const c = module.presentations.components[i];
+            const comp = await db.collection('components').findOne({ _id: new ObjectId(c.id) });
+            c.title = comp.title;
+            console.log(c.title)
+        }
+
+        return res.json(module);
     }
     catch (err) {
         console.log(err);
@@ -73,7 +80,7 @@ router.put('/meetings/delete/:id', async function (req, res, next) {
     try {
         const result = await db.collection('modules')
             .updateOne({ _id: new ObjectId(moduleid) }, { $set: { 'meetings.components': req.body.meetings } });
-            return res.json(result);
+        return res.json(result);
     }
     catch (err) {
         console.log(err);
@@ -94,7 +101,7 @@ router.put('/meetings/add/:id', async function (req, res, next) {
                 { _id: new ObjectId(moduleid) },
                 { $push: { 'meetings.components': newMeeting } }
             );
-            return res.json(result);
+        return res.json(result);
     }
     catch (err) {
         console.log(err);
@@ -112,7 +119,7 @@ router.put('/meetings/update/:id', async function (req, res, next) {
                 { _id: new ObjectId(moduleid) },
                 { $set: { 'meetings.components': updatedMeetings } }
             );
-            return res.json(result);
+        return res.json(result);
     }
     catch (err) {
         console.log(err);
@@ -130,7 +137,7 @@ router.put('/meetings/weekly/rate/:id', async function (req, res, next) {
                 { _id: new ObjectId(moduleid), "meetings.components.meetingID": new ObjectId(meetingID) },
                 { $set: { "meetings.components.$.ratings": ratings } }
             );
-            return res.json(result);
+        return res.json(result);
     }
     catch (err) {
         console.log(err);
@@ -138,6 +145,17 @@ router.put('/meetings/weekly/rate/:id', async function (req, res, next) {
     }
 });
 
-
+router.get('/com/:id', async function (req, res, next) {
+    const comId = req.params.id;
+    const db = await connectToDB();
+    try {
+        const com = await db.collection('components')
+            .findOne({ _id: new ObjectId(comId) });
+        return res.json(com);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
 
 module.exports = router;
