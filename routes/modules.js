@@ -158,4 +158,31 @@ router.get('/com/:id', async function (req, res, next) {
     }
 });
 
+
+router.put('/com/file/sub/:id', async function (req, res, next) {
+    const comId = req.params.id;
+    const db = await connectToDB();
+    const submission = {
+        file: req.body.file,
+        fileName: req.body.fileName,
+        submitTime: new Date()
+    };
+
+    try {
+        const result = await db.collection('components')
+            .updateOne(
+                { _id: new ObjectId(comId) },
+                { $set: { 'submission': submission } }
+            );
+
+        if (result.modifiedCount === 1) {
+            return res.status(200).json({ message: 'Update successful' });
+        } else {
+            return res.status(404).json({ message: 'Component not found' });
+        }
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
 module.exports = router;
