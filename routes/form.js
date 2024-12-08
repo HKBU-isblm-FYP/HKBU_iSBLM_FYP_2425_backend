@@ -21,8 +21,11 @@ router.post('/declaration/submit', async (req, res, next) => {
         const supervisor = await db.collection('users').findOne({ _id: new ObjectId(student.supervisor) });
 
         console.log(supervisor.email);
-        // Send an email to the supervisor
-
+        await sendEmail(
+            "21222843@life.hkbu.edu.hk",
+            'Form Approval Needed',
+            `A form has been submitted by your student, ${student.name}.`
+        );
 
         res.json(result);
     }
