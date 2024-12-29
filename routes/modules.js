@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
+const { createBlob } = require('../utils/azure-blob');
 
 router.get('/all/:id', async function (req, res, next) {
     const studentid = req.params.id;
@@ -162,12 +163,14 @@ router.get('/com/:id', async function (req, res, next) {
 router.put('/com/file/sub/:id', async function (req, res, next) {
     const comId = req.params.id;
     const db = await connectToDB();
+    file = await createBlob(req.files.file.name, req.files.file.data);
+    req.body.file = file;
+
     const submission = {
         file: req.body.file,
         fileName: req.body.fileName,
         submitTime: new Date()
     };
-
     try {
         const result = await db.collection('components')
             .updateOne(
