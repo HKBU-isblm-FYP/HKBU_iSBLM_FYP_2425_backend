@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
 const { sendEmail } = require('../utils/emailServices.js');
+const { createBlob } = require('../utils/azure-blob.js');
 
 router.post('/declaration/submit', async (req, res, next) => {
     const db = await connectToDB();
@@ -14,6 +15,12 @@ router.post('/declaration/submit', async (req, res, next) => {
         req.body.type = 'Declaration Form';
         req.body.approval = { supervisor: false, head: false, adm1: false, adm2: false };
         req.body.status = 'pending';
+        req.body.submittedAt = new Date();
+        proposal = await createBlob(req.files.proposal.name, req.files.proposal.data);
+        req.body.proposal = proposal;
+        studyPlan = await createBlob(req.files.studyPlan.name, req.files.studyPlan.data);
+        req.body.studyPlan = studyPlan;
+        
         const result = await db.collection('form').insertOne(req.body);
 
         // Find the student's supervisor
@@ -32,11 +39,11 @@ router.post('/declaration/submit', async (req, res, next) => {
             <p>Please review and approve the form at your earliest convenience.</p>
             <p>Thank you.</p>
             <p>Best regards,</p>
-            <p>Your University Administration</p>
+            <p>ISBLM system</p>
         `;
 
         await sendEmail(
-            supervisor.email,
+            "21222843@life.hkbu.edu.hk",
             'Form Approval Needed',
             emailContent
         );

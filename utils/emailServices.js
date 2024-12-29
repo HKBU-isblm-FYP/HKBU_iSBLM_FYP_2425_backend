@@ -8,7 +8,7 @@ async function sendEmail(recipient, subject, body) {
         senderAddress: "DoNotReply@5a6d3e81-a76e-4a06-b751-1501cb4fe4ed.azurecomm.net",
         content: {
             subject: subject,
-            plainText: body,
+            html: body,
         },
         recipients: {
             to: [

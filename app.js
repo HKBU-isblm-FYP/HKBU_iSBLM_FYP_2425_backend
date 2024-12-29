@@ -8,7 +8,7 @@ var logger = require('morgan');
 
 //FIX SPA HISTORY
 var history = require('connect-history-api-fallback');
-
+var fileUpload = require('express-fileupload');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var imapRouter = require('./routes/imap');
@@ -27,6 +27,8 @@ var dashboardRouter = require('./routes/dashboard'); // For Serving dashboard da
 var templateRouter = require('./routes/template'); // For Serving template data.
 var categoryRouter = require('./routes/categories'); // For Serving category data.
 var app = express();
+
+
 //FIX SPA HISTORY
 // app.use(history());
 app.use(history({
@@ -67,7 +69,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
+app.use(fileUpload());
 var jwt = require('jsonwebtoken');
 var passport = require('passport');
 const { isAdmin } = require('./utils/auth');
