@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
 const { sendEmail } = require('../utils/emailServices.js');
-const { createBlob } = require('../utils/azure-blob.js');
+const { createBlob, generateBlobSasUri } = require('../utils/azure-blob');
 
 router.post('/declaration/submit', async (req, res, next) => {
     const db = await connectToDB();
