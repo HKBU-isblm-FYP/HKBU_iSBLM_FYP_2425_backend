@@ -20,11 +20,25 @@ router.post('/declaration/submit', async (req, res, next) => {
         const student = await db.collection('users').findOne({ _id: new ObjectId(req.body.studentID) });
         const supervisor = await db.collection('users').findOne({ _id: new ObjectId(student.supervisor) });
 
-        console.log(supervisor.email);
+        const emailContent = `
+            <p>Dear ${supervisor.name},</p>
+            <p>A new declaration form has been submitted by your student, <strong>${student.name}</strong>.</p>
+            <p>Details of the submission:</p>
+            <ul>
+                <li>Student ID: ${student._id}</li>
+                <li>Form Type: ${req.body.type}</li>
+                <li>Status: ${req.body.status}</li>
+            </ul>
+            <p>Please review and approve the form at your earliest convenience.</p>
+            <p>Thank you.</p>
+            <p>Best regards,</p>
+            <p>Your University Administration</p>
+        `;
+
         await sendEmail(
-            "21222843@life.hkbu.edu.hk",
+            supervisor.email,
             'Form Approval Needed',
-            `A form has been submitted by your student, ${student.name}.`
+            emailContent
         );
 
         res.json(result);
@@ -34,7 +48,6 @@ router.post('/declaration/submit', async (req, res, next) => {
         return res.status(500).json({ error: err.toString() });
     }
 });
-
 router.put('/all', async (req, res, next) => {
     const db = await connectToDB();
     try {
@@ -107,8 +120,25 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
 
             // Notify the head
             const head = await db.collection('users').findOne({ isHead: true });
-            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Approval Needed', 'A form has been approved by the supervisor and needs your approval.');
-        } else {
+            await sendEmail(
+                "21222843@life.hkbu.edu.hk",
+                'Form Approval Needed',
+                `
+                <p>Dear ${head.name},</p>
+                <p>The form submitted by a student has been approved by the supervisor and now requires your approval.</p>
+                <p>Form Details:</p>
+                <ul>
+                    <li>Form ID: ${form._id}</li>
+                    <li>Student ID: ${form.studentID}</li>
+                    <li>Form Type: ${form.type}</li>
+                    <li>Status: ${form.status}</li>
+                </ul>
+                <p>Please review and approve the form at your earliest convenience.</p>
+                <p>Thank you.</p>
+                <p>Best regards,</p>
+                <p>Your University Administration</p>
+                `
+            ); } else {
             const user = await db.collection('users').findOne({ _id: new ObjectId(uid) });
             if (user.isHead) {
                 if (form.approval.supervisor.approval === 'approved') {
@@ -126,8 +156,25 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
 
                     // Notify the admin
                     const admin = await db.collection('users').findOne({ isAdmin: true });
-                    await sendEmail("21222843@life.hkbu.edu.hk", 'Form Approval Needed', 'A form has been approved by the head and needs your approval.');
-                }
+                    await sendEmail(
+                        admin.email,
+                        'Form Approval Needed',
+                        `
+                        <p>Dear ${admin.name},</p>
+                        <p>The form submitted by a student has been approved by the head and now requires your approval.</p>
+                        <p>Form Details:</p>
+                        <ul>
+                            <li>Form ID: ${form._id}</li>
+                            <li>Student ID: ${form.studentID}</li>
+                            <li>Form Type: ${form.type}</li>
+                            <li>Status: ${form.status}</li>
+                        </ul>
+                        <p>Please review and approve the form at your earliest convenience.</p>
+                        <p>Thank you.</p>
+                        <p>Best regards,</p>
+                        <p>Your University Administration</p>
+                        `
+                    );     }
             } if (user.isAdmin) {
                 const admin = { approval: req.body.approval, reason: req.body.reason };
 
@@ -166,22 +213,67 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
             const approverName = approver.name || 'Unknown';
             const approverRole = approver.role || 'Unknown role';
 
-            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been ${req.body.approval} by ${approverName} (${approverRole}).`);
+            await sendEmail(
+                "21222843@life.hkbu.edu.hk",
+                'Form Status Update',
+                `
+                <p>Dear Student,</p>
+                <p>Your form has been <strong>approved</strong> by ${approverName} (${approverRole}).</p>
+                <p>Form Details:</p>
+                <ul>
+                    <li>Form ID: ${form._id}</li>
+                    <li>Form Type: ${form.type}</li>
+                    <li>Status: ${form.status}</li>
+                </ul>
+                <p>Thank you.</p>
+                <p>Best regards,</p>
+                <p>Your University Administration</p>
+                `
+            );
         } else {
             const approver = await db.collection('users').findOne({ _id: new ObjectId(uid) });
             const approverName = approver.name || 'Unknown';
             const approverRole = approver.role || 'Unknown role';
 
-            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been disapproved by ${approverName} (${approverRole}). Reason: ${req.body.reason}`);
-            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been disapproved by ${approverName} (${approverRole}). Reason: ${req.body.reason}`);
+            await sendEmail(
+                "21222843@life.hkbu.edu.hk",
+                'Form Status Update',
+                `
+                <p>Dear Student,</p>
+                <p>Your form has been <strong>disapproved</strong> by ${approverName} (${approverRole}).</p>
+                <p>Reason: ${req.body.reason}</p>
+                <p>Form Details:</p>
+                <ul>
+                    <li>Form ID: ${form._id}</li>
+                    <li>Form Type: ${form.type}</li>
+                    <li>Status: ${form.status}</li>
+                </ul>
+                <p>Thank you.</p>
+                <p>Best regards,</p>
+                <p>Your University Administration</p>
+                `
+            );
         }
-
 
         if (form.status === 'approved') {
-            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been approved by all approvers.`);
-            await sendEmail("21222843@life.hkbu.edu.hk", 'Form Status Update', `The form has been approved by all approvers.`);
+            await sendEmail(
+                "21222843@life.hkbu.edu.hk",
+                'Form Status Update',
+                `
+                <p>Dear Student,</p>
+                <p>Your form has been <strong>approved</strong> by all approvers.</p>
+                <p>Form Details:</p>
+                <ul>
+                    <li>Form ID: ${form._id}</li>
+                    <li>Form Type: ${form.type}</li>
+                    <li>Status: ${form.status}</li>
+                </ul>
+                <p>Thank you.</p>
+                <p>Best regards,</p>
+                <p>Your University Administration</p>
+                `
+            );
         }
-
         res.json(updatedForm);
     }
     catch (err) {
