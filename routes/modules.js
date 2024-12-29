@@ -188,4 +188,20 @@ router.put('/com/file/sub/:id', async function (req, res, next) {
         return res.status(500).json({ error: err.toString() });
     }
 });
+router.put('/com/:id/grade', async function (req, res, next) {
+    const comId = req.params.id;
+    const db = await connectToDB();
+    try {
+        const result = await db.collection('components')
+            .updateOne(
+                { _id: new ObjectId(comId) },
+                { $set: { 'grade': req.body.grade } }
+            );
+        return res.json(result);
+    }
+    catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
 module.exports = router;
