@@ -75,5 +75,27 @@ router.get('/:id', async function (req, res, next) {
     res.json(ProgressStudyPlan);
 });
 
+router.get('/blueprints/:id', async function (req, res, next) {
+    const db = await connectToDB();
+    const id = req.params.id;
+    try {
+        const blueprints = await db.collection('studyPlans').find({ sid: new ObjectId(id), blueprint: true }).toArray();
+        return res.json(blueprints);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
 
+router.get('/current/:id', async function (req, res, next) {
+    const db = await connectToDB();
+    const id = req.params.id;
+    try {
+        const current = await db.collection('studyPlans').find({ sid: new ObjectId(id), blueprint: false }).toArray();
+        return res.json(current);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
 module.exports = router;
