@@ -32,7 +32,7 @@ router.get('/:id', async function (req, res, next) {
 
     try {
         // studyPlan = await db.collection('studyPlans').findOne({ sid: new ObjectId(studentId) });
-        ProgressStudyPlan = await db.collection('projects').findOne({ 'member.0.id': new ObjectId(studentId) });
+        ProgressStudyPlan = await db.collection('projects').findOne({ "sid": new ObjectId(studentId) });
 
         if (!ProgressStudyPlan) {
             return res.status(404).json({ error: 'Study plan not found for the given student ID' });
@@ -79,7 +79,7 @@ router.get('/blueprints/:id', async function (req, res, next) {
     const db = await connectToDB();
     const id = req.params.id;
     try {
-        const blueprints = await db.collection('studyPlans').find({ sid: new ObjectId(id), blueprint: true }).toArray();
+        const blueprints = await db.collection('projects').find({ sid: new ObjectId(id), blueprint: true }).toArray();
         return res.json(blueprints);
     } catch (err) {
         console.log(err);
@@ -91,7 +91,7 @@ router.get('/current/:id', async function (req, res, next) {
     const db = await connectToDB();
     const id = req.params.id;
     try {
-        const current = await db.collection('studyPlans').find({ sid: new ObjectId(id), blueprint: false }).toArray();
+        const current = await db.collection('projects').find({ sid: new ObjectId(id), blueprint: false }).toArray();
         return res.json(current);
     } catch (err) {
         console.log(err);
