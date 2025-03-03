@@ -15,6 +15,8 @@ router.get('/', async (req, res) => {
     const countProjects = await db.collection('projects').countDocuments();
     const countUsers = await db.collection('users').countDocuments();
 
+    //Here shall return the calcualted relevant data for the use of the frontend.
+
     res.json({courses: countCourses, projects: countProjects, users: countUsers });
 
   } catch (err) {
