@@ -18,8 +18,8 @@ router.post('/declaration/submit', async (req, res, next) => {
         req.body.submittedAt = new Date();
         proposal = await createBlob(req.files.proposal.name, req.files.proposal.data);
         req.body.proposal = proposal;
-        studyPlan = await createBlob(req.files.studyPlan.name, req.files.studyPlan.data);
-        req.body.studyPlan = studyPlan;
+
+        req.body.studyPlan = new ObjectId(req.body.studyPlan);
         
         const result = await db.collection('form').insertOne(req.body);
 
