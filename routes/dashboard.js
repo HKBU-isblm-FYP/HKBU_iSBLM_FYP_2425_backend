@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
     console.log(err);
     res.status(500).json({ message: 'Internal Server Error' });
   } finally {
-    await db.client.close();
+    // await db.client.close();
   }
 });
 

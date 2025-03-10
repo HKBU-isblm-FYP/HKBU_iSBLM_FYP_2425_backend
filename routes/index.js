@@ -40,7 +40,7 @@ router.post('/api/login', async function (req, res, next) {
   } catch (err) {
     res.status(400).json({ message: err.message });
   } finally {
-    await db.client.close();
+    // await db.client.close();
   }
 });
 

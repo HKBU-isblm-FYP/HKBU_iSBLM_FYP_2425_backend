@@ -576,7 +576,7 @@ async function sendToMonGo(req, res, b2, parsedMail) {
         // return res.status(400).json({ message: err.message });
         return { message: err.message, status: 400 };
     } finally {
-        await db.client.close();
+        // await db.client.close();
     }
 }
 

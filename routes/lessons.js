@@ -72,7 +72,7 @@ router.get('/all', async (req, res) => {
     // res.json(err);
     res.status(500).json({ message: 'Internal Server Error' });
   } finally {
-    await db.client.close();
+    // await db.client.close();
   }
 });
 
@@ -89,7 +89,7 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.log(err);
   } finally {
-    await db.client.close();
+    // await db.client.close();
   }
 });
 

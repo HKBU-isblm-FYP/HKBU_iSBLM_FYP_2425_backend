@@ -14,10 +14,21 @@ if (!process.env.MONGODB_URI) {
 }
 
 // Connect to MongoDB
+// async function connectToDB() {
+//     const client = await MongoClient.connect(process.env.MONGODB_URI);
+//     const db = client.db('iSBLM');
+//     db.client = client;
+//     return db;
+// }
+
+let db;
+
 async function connectToDB() {
-    const client = await MongoClient.connect(process.env.MONGODB_URI);
-    const db = client.db('iSBLM');
-    db.client = client;
+    if (!db) {
+        const client = await MongoClient.connect(process.env.MONGODB_URI);
+        db = client.db('iSBLM');
+        db.client = client;
+    }
     return db;
 }
 
