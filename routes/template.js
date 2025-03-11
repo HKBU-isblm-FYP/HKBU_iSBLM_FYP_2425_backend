@@ -1,6 +1,9 @@
 var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
+const { createBlob } = require('../utils/azure-blob');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
 router.get('/',async function (req, res, next) {
     const db = await connectToDB();
@@ -64,11 +67,47 @@ router.post('/:id/topics/:topicId/activity', async (req, res) => {
         const block = { ...req.body, id: new ObjectId() };
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
-            { $push: { 'topics.$.blocks': block } }
+            { $push: { 'topics.$.activities': block } }
         );
         res.status(200).json({ block });
     } catch (error) {
         res.status(500).json({ message: 'Error adding block', error });
+    }
+});
+
+router.post('/:id/topics/:topicId/assignment', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        let assignment = { ...req.body, id: new ObjectId() };
+        if (req.files && req.files.file) {
+            const blobUrl = await createBlob(req.files.file.name, req.files.file.data);
+            assignment.file = blobUrl.url;
+        }
+        await db.collection('moduleTemp').updateOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { $push: { 'topics.$.assignments': assignment } }
+        );
+        res.status(200).json({ assignment });
+    } catch (error) {
+        res.status(500).json({ message: 'Error adding assignment', error });
+    }
+});
+
+router.post('/:id/topics/:topicId/resource', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        let resource = { ...req.body, id: new ObjectId() };
+        if (req.files && req.files.file) {
+            const blobUrl = await createBlob(req.files.file.name, req.files.file.data);
+            resource.file = blobUrl.url;
+        }
+        await db.collection('moduleTemp').updateOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { $push: { 'topics.$.resources': resource } }
+        );
+        res.status(200).json({ resource });
+    } catch (error) {
+        res.status(500).json({ message: 'Error adding resource', error });
     }
 });
 
