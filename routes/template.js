@@ -2,7 +2,6 @@ var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
 
-
 router.get('/',async function (req, res, next) {
     const db = await connectToDB();
     try {
@@ -43,6 +42,7 @@ router.put('/:id/topics', async (req, res) => {
         res.status(500).json({ message: 'Error updating topics', error });
     }
 });
+
 router.patch('/:id/topics/:topicId', async (req, res) => {
     const db = await connectToDB();
     try {
@@ -57,4 +57,19 @@ router.patch('/:id/topics/:topicId', async (req, res) => {
         res.status(500).json({ message: 'Error updating topic', error });
     }
 });
+
+router.post('/:id/topics/:topicId/activity', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        const block = { ...req.body, id: new ObjectId() };
+        await db.collection('moduleTemp').updateOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { $push: { 'topics.$.blocks': block } }
+        );
+        res.status(200).json({ block });
+    } catch (error) {
+        res.status(500).json({ message: 'Error adding block', error });
+    }
+});
+
 module.exports = router;
