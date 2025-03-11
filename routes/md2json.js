@@ -37,7 +37,7 @@ router.patch('/lesson/:id', async (req, res) => {
   } catch (err) {
     console.log(err);
   } finally {
-    await db.client.close();
+    // await db.client.close();
   }
 });
 

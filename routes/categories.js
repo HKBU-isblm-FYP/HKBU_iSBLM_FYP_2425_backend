@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error' });
     } finally {
         if (db) {
-            await db.client.close();
+            // await db.client.close();
         }
     }
 });

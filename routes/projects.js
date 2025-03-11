@@ -78,7 +78,7 @@ router.get('/all', async (req, res) => {
     console.error(err);
     res.status(500).send({ message: 'Internal Server Error' });
   } finally {
-    await db.client.close();
+    // await db.client.close();
   }
 });
 
@@ -95,7 +95,7 @@ router.get('/:id', async (req, res) => {
   } catch (err) {
     console.log(err);
   } finally {
-    await db.client.close();
+    // await db.client.close();
   }
 });
 
@@ -258,7 +258,7 @@ router.post('/createAttachments', uploadFile.any(), async (req, res) => {
   } catch (err) {
     console.log(err);
   } finally {
-    await db.client.close();
+    // await db.client.close();
   }
 
   // save file to Backblaze B2... //LATER
