@@ -99,7 +99,7 @@ router.post('/:id/topics/:topicId/resource', async (req, res) => {
         let resource = { ...req.body, id: new ObjectId() };
         if (req.files && req.files.file) {
             const blob = await createBlob(req.files.file.name, req.files.file.data);
-            assignment.file = blob
+            resource.file = blob; // Correctly assign the blob to resource.file
         }
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
@@ -208,6 +208,64 @@ router.delete('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) 
         res.status(200).json({ message: 'Assignment deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting assignment', error });
+    }
+});
+
+router.get('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        const module = await db.collection('moduleTemp').findOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { projection: { 'topics.$': 1 } }
+        );
+        const resource = module.topics[0].resources.find(res => res.id.equals(new ObjectId(req.params.resourceId)));
+        res.status(200).json(resource);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching resource', error });
+    }
+});
+
+router.put('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        const { title, description, link } = req.body;
+        let file = req.body.file;
+        
+        if (req.files && req.files.file) {
+            const blob = await createBlob(req.files.file.name, req.files.file.data);
+            file = blob; // Correctly assign the blob to file
+        }
+
+        await db.collection('moduleTemp').updateOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId), 'topics.resources.id': new ObjectId(req.params.resourceId) },
+            { $set: { 'topics.$.resources.$[resource].title': title, 'topics.$.resources.$[resource].description': description, 'topics.$.resources.$[resource].link': link, 'topics.$.resources.$[resource].file': file } },
+            { arrayFilters: [{ 'resource.id': new ObjectId(req.params.resourceId) }] }
+        );
+        res.status(200).json({ message: 'Resource updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating resource', error });
+    }
+});
+
+router.delete('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        const module = await db.collection('moduleTemp').findOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { projection: { 'topics.$': 1 } }
+        );
+        const resource = module.topics[0].resources.find(res => res.id.equals(new ObjectId(req.params.resourceId)));
+        if (resource && resource.file) {
+            const blobName = resource.file.split('/').pop(); // Assuming the file URL ends with the blob name
+            await deleteBlob(blobName);
+        }
+        await db.collection('moduleTemp').updateOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { $pull: { 'topics.$.resources': { id: new ObjectId(req.params.resourceId) } } }
+        );
+        res.status(200).json({ message: 'Resource deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error deleting resource', error });
     }
 });
 
