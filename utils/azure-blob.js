@@ -25,6 +25,7 @@ async function createBlob(fileName, fileContent) {
 
     return { blobName: blobName, url: blockBlobClient.url };
 }
+
 // Create a service SAS for a blob
 function getBlobSasUri(containerClient, blobName, sharedKeyCredential, storedPolicyName) {
     const sasOptions = {
@@ -54,4 +55,13 @@ function generateBlobSasUri(blobName) {
     return getBlobSasUri(containerClient, blobName, sharedKeyCredential, null);
 }
 
-module.exports = { createBlob };
+async function deleteBlob(blobName) {
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    await blockBlobClient.delete();
+}
+
+module.exports = { 
+    createBlob, 
+    deleteBlob 
+};
