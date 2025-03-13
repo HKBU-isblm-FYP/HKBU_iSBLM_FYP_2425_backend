@@ -80,8 +80,8 @@ router.post('/:id/topics/:topicId/assignment', async (req, res) => {
     try {
         let assignment = { ...req.body, id: new ObjectId() };
         if (req.files && req.files.file) {
-            const blobUrl = await createBlob(req.files.file.name, req.files.file.data);
-            assignment.file = blobUrl.url;
+            const blob = await createBlob(req.files.file.name, req.files.file.data);
+            assignment.file = blob
         }
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
@@ -98,8 +98,8 @@ router.post('/:id/topics/:topicId/resource', async (req, res) => {
     try {
         let resource = { ...req.body, id: new ObjectId() };
         if (req.files && req.files.file) {
-            const blobUrl = await createBlob(req.files.file.name, req.files.file.data);
-            resource.file = blobUrl.url;
+            const blob = await createBlob(req.files.file.name, req.files.file.data);
+            assignment.file = blob
         }
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
@@ -172,10 +172,10 @@ router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
     try {
         const { title, description, dueDate } = req.body;
         let file = req.body.file;
-
+        
         if (req.files && req.files.file) {
-            const blobUrl = await createBlob(req.files.file.name, req.files.file.data);
-            file = blobUrl.url;
+            const blob = await createBlob(req.files.file.name, req.files.file.data);
+            file = blob; // Correctly assign the blob to file
         }
 
         await db.collection('moduleTemp').updateOne(
