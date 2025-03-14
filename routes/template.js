@@ -96,11 +96,18 @@ router.post('/:id/topics/:topicId/assignment', async (req, res) => {
 router.post('/:id/topics/:topicId/resource', async (req, res) => {
     const db = await connectToDB();
     try {
-        let resource = { ...req.body, id: new ObjectId() };
+        let resource = { ...req.body, id: new ObjectId(), files: [] };
         if (req.files && req.files.file) {
-            const blob = await createBlob(req.files.file.name, req.files.file.data);
-            resource.file = blob; // Correctly assign the blob to resource.file
+            const files = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
+            for (const file of files) {
+                const blob = await createBlob(file.name, file.data);
+                resource.files.push({
+                    file: blob,
+                    fileName: file.name
+                });
+            }
         }
+        resource.submitTime = new Date();
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
             { $push: { 'topics.$.resources': resource } }
@@ -229,16 +236,22 @@ router.put('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
     const db = await connectToDB();
     try {
         const { title, description, link } = req.body;
-        let file = req.body.file;
+        let files = [];
         
         if (req.files && req.files.file) {
-            const blob = await createBlob(req.files.file.name, req.files.file.data);
-            file = blob; // Correctly assign the blob to file
+            const filesArray = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
+            for (const file of filesArray) {
+                const blob = await createBlob(file.name, file.data);
+                files.push({
+                    file: blob,
+                    fileName: file.name
+                });
+            }
         }
 
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId), 'topics.resources.id': new ObjectId(req.params.resourceId) },
-            { $set: { 'topics.$.resources.$[resource].title': title, 'topics.$.resources.$[resource].description': description, 'topics.$.resources.$[resource].link': link, 'topics.$.resources.$[resource].file': file } },
+            { $set: { 'topics.$.resources.$[resource].title': title, 'topics.$.resources.$[resource].description': description, 'topics.$.resources.$[resource].link': link, 'topics.$.resources.$[resource].files': files, 'topics.$.resources.$[resource].submitTime': new Date() } },
             { arrayFilters: [{ 'resource.id': new ObjectId(req.params.resourceId) }] }
         );
         res.status(200).json({ message: 'Resource updated successfully' });
