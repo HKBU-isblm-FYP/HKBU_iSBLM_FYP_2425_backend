@@ -78,10 +78,16 @@ router.post('/:id/topics/:topicId/activity', async (req, res) => {
 router.post('/:id/topics/:topicId/assignment', async (req, res) => {
     const db = await connectToDB();
     try {
-        let assignment = { ...req.body, id: new ObjectId() };
+        let assignment = { ...req.body, id: new ObjectId(), files: [] };
         if (req.files && req.files.file) {
-            const blob = await createBlob(req.files.file.name, req.files.file.data);
-            assignment.file = blob
+            const files = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
+            for (const file of files) {
+                const blob = await createBlob(file.name, file.data);
+                assignment.files.push({
+                    fileName: file.name,
+                    file: blob
+                });
+            }
         }
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
@@ -156,7 +162,7 @@ router.delete('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
         );
         res.status(200).json({ message: 'Activity deleted successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Error deleting activity', error });
+        res.status (500).json({ message: 'Error deleting activity', error });
     }
 });
 
@@ -178,16 +184,29 @@ router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
     const db = await connectToDB();
     try {
         const { title, description, dueDate } = req.body;
-        let file = req.body.file;
-        
+        let files = [];
+
+        // Add fetched files to the files array
+        if (req.body.fetchedFiles) {
+            const fetchedFiles = JSON.parse(req.body.fetchedFiles);
+            files = files.concat(fetchedFiles);
+        }
+
+        // Add new files to the files array
         if (req.files && req.files.file) {
-            const blob = await createBlob(req.files.file.name, req.files.file.data);
-            file = blob; // Correctly assign the blob to file
+            const filesArray = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
+            for (const file of filesArray) {
+                const blob = await createBlob(file.name, file.data);
+                files.push({
+                    file: blob,
+                    fileName: file.name
+                });
+            }
         }
 
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId), 'topics.assignments.id': new ObjectId(req.params.assignmentId) },
-            { $set: { 'topics.$.assignments.$[assignment].title': title, 'topics.$.assignments.$[assignment].description': description, 'topics.$.assignments.$[assignment].dueDate': dueDate, 'topics.$.assignments.$[assignment].file': file } },
+            { $set: { 'topics.$.assignments.$[assignment].title': title, 'topics.$.assignments.$[assignment].description': description, 'topics.$.assignments.$[assignment].dueDate': dueDate, 'topics.$.assignments.$[assignment].files': files } },
             { arrayFilters: [{ 'assignment.id': new ObjectId(req.params.assignmentId) }] }
         );
         res.status(200).json({ message: 'Assignment updated successfully' });
