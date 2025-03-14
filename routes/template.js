@@ -102,8 +102,8 @@ router.post('/:id/topics/:topicId/resource', async (req, res) => {
             for (const file of files) {
                 const blob = await createBlob(file.name, file.data);
                 resource.files.push({
-                    file: blob,
-                    fileName: file.name
+                    fileName: file.name,
+                    file: blob
                 });
             }
         }
