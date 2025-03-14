@@ -237,7 +237,14 @@ router.put('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
     try {
         const { title, description, link } = req.body;
         let files = [];
-        
+
+        // Add fetched files to the files array
+        if (req.body.fetchedFiles) {
+            const fetchedFiles = JSON.parse(req.body.fetchedFiles);
+            files = files.concat(fetchedFiles);
+        }
+
+        // Add new files to the files array
         if (req.files && req.files.file) {
             const filesArray = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
             for (const file of filesArray) {
