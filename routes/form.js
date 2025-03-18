@@ -20,7 +20,7 @@ router.post('/declaration/submit', async (req, res, next) => {
         req.body.proposal = proposal;
 
         req.body.studyPlan = new ObjectId(req.body.studyPlan);
-        
+
         const result = await db.collection('form').insertOne(req.body);
 
         // Find the student's supervisor
@@ -145,7 +145,8 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                 <p>Best regards,</p>
                 <p>Your University Administration</p>
                 `
-            ); } else {
+            );
+        } else {
             const user = await db.collection('users').findOne({ _id: new ObjectId(uid) });
             if (user.isHead) {
                 if (form.approval.supervisor.approval === 'approved') {
@@ -181,7 +182,8 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                         <p>Best regards,</p>
                         <p>Your University Administration</p>
                         `
-                    );     }
+                    );
+                }
             } if (user.isAdmin) {
                 const admin = { approval: req.body.approval, reason: req.body.reason };
 
@@ -192,12 +194,19 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                     const updateFields = { "approval.adm2": admin, "status": "approved" };
                     if (req.body.approval === 'disapproved') {
                         updateFields.status = 'disapproved';
+                        await db.collection('form').updateOne(
+                            { _id: new ObjectId(formid) },
+                            { $set: updateFields }
+                        );
+                    } else {
+                        await db.collection('form').updateOne(
+                            { _id: new ObjectId(formid) },
+                            { $set: updateFields }
+                        );
+                        form.status = 'approved';
                     }
 
-                    await db.collection('form').updateOne(
-                        { _id: new ObjectId(formid) },
-                        { $set: updateFields }
-                    );
+
                 } else {
                     const updateFields = { "approval.adm1": admin };
                     if (req.body.approval === 'disapproved') {
@@ -280,6 +289,23 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                 <p>Your University Administration</p>
                 `
             );
+
+            // Update studyPlan blueprint
+            const studyPlanId = form.studyPlan;
+            const studentId = form.studentID;
+            
+            // Update student's studyPlan blueprint to true
+            await db.collection('studyPlans').updateMany(
+                { sid: new ObjectId(studentId) },
+                { $set: { blueprint: true } }
+            );
+            // Update studyPlan blueprint to false
+            await db.collection('studyPlans').updateOne(
+                { _id: new ObjectId(studyPlanId) },
+                { $set: { blueprint: false } }
+            );
+
+
         }
         res.json(updatedForm);
     }
