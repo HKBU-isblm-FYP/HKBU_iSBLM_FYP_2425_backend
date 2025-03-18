@@ -5,7 +5,7 @@ const { createBlob, deleteBlob } = require('../utils/azure-blob');
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 
-router.get('/',async function (req, res, next) {
+router.get('/', async function (req, res, next) {
     const db = await connectToDB();
     try {
         const template = await db.collection('moduleTemp').find().toArray();
@@ -18,13 +18,68 @@ router.get('/',async function (req, res, next) {
     }
 });
 
-router.get('/:id',async function (req, res, next) {
+router.post('/create', async function (req, res, next) {
     const db = await connectToDB();
-    try{
+    try {
+        const template = req.body;
+        if (template.blueprintYearPlan) {
+            const existingTemplate = await db.collection('moduleTemp').find({ yearPlan: template.blueprintYearPlan }).toArray();
+            if (existingTemplate.length > 0) {
+                const currentTemplate = await db.collection('moduleTemp').find({ yearPlan: template.yearPlan }).toArray();
+                if (currentTemplate.length > 0) {
+                    await db.collection('moduleTemp').deleteMany({ yearPlan: template.yearPlan });
+                }
+                existingTemplate.forEach(async (module) => {
+                    module.yearPlan = template.yearPlan;
+                });
+                for (const module of existingTemplate) {
+                    await db.collection('moduleTemp').insertOne(module);
+                }
+            }
+        } else {
+            const currentTemplate = await db.collection('moduleTemp').find({ yearPlan: template.yearPlan }).toArray();
+            if (currentTemplate.length > 0) {
+                await db.collection('moduleTemp').deleteMany({ yearPlan: template.yearPlan });
+            }
+            const details = req.body.details
+            const yearPlan = template.yearPlan.toString();
+            const modules = [];
+
+            for (const [key, moduleName] of Object.entries(details)) {
+                if (moduleName) {
+                    const sem = key.replace('sem', '');
+                    modules.push({
+                        moduleName: moduleName,
+                        sem: sem,
+                        yearPlan: yearPlan
+                    });
+                }
+            }
+
+            if (modules.length > 0) {
+                await db.collection('moduleTemp').insertMany(modules);
+            }
+        }
+        return res.status(200).json({ message: 'Template created successfully' });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+
+
+
+
+
+
+
+router.get('/:id', async function (req, res, next) {
+    const db = await connectToDB();
+    try {
         const template = await db.collection('moduleTemp').findOne({ _id: new ObjectId(req.params.id) });
         return res.json(template);
     }
-    catch(err){
+    catch (err) {
         console.log(err);
         return res.status(500).json({ error: err.toString() });
     }
@@ -212,7 +267,7 @@ router.delete('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
         );
         res.status(200).json({ message: 'Activity deleted successfully' });
     } catch (error) {
-        res.status (500).json({ message: 'Error deleting activity', error });
+        res.status(500).json({ message: 'Error deleting activity', error });
     }
 });
 router.delete('/:id/topics/:topicId', async (req, res) => {
