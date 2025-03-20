@@ -1,0 +1,8 @@
+{
+    "appService.zipIgnorePattern": [
+        "node_modules{,/**}",
+        ".vscode{,/**}"
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/086ff945-267c-40e8-85c2-0944f6739329/resourceGroups/isblm-hosting/providers/Microsoft.Web/sites/isblm-backend",
+    "appService.deploySubpath": "."
+}
