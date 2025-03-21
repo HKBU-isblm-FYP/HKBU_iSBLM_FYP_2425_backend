@@ -27,6 +27,7 @@ var studyplansRouter = require('./routes/studyplans');
 var dashboardRouter = require('./routes/dashboard'); // For Serving dashboard data.
 var templateRouter = require('./routes/template'); // For Serving template data.
 var categoryRouter = require('./routes/categories'); // For Serving category data.
+var noticesRouter = require('./routes/notices'); // Import notices to initialize cron job
 var app = express();
 
 
@@ -104,6 +105,7 @@ app.use('/api/uploads', express.static('uploads')); // THE MYTH IS THAT WE HAVE 
 app.use('/api/studyplans', passport.authenticate('bearer', { session: false }), studyplansRouter);
 app.use('/api/template', passport.authenticate('bearer', { session: false }), templateRouter);
 app.use('/api/categories', passport.authenticate('bearer', { session: false }), categoryRouter);
+app.use('/api/notices', passport.authenticate('bearer', { session: false }), noticesRouter);
 
 // Serve the static files from the dist directory
 app.use(express.static(path.join(__dirname, 'dist')));
