@@ -146,6 +146,40 @@ router.put('/meetings/weekly/rate/:id', async function (req, res, next) {
     }
 });
 
+router.put('/meetingLogs/update/:id', async function (req, res, next) {
+    const moduleid = req.params.id;
+    const meetingLogs = req.body.meetingLogs; // Array of meeting logs
+    const db = await connectToDB();
+    try {
+        const result = await db.collection('modules')
+            .updateOne(
+                { _id: new ObjectId(moduleid) },
+                { $set: { 'meetingLogs.components': meetingLogs } }
+            );
+        return res.json(result);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+
+router.put('/meetingLogs/delete/:id', async function (req, res, next) {
+    const moduleid = req.params.id;
+    const meetingLogs = req.body.meetingLogs; // Updated array of meeting logs after deletion
+    const db = await connectToDB();
+    try {
+        const result = await db.collection('modules')
+            .updateOne(
+                { _id: new ObjectId(moduleid) },
+                { $set: { 'meetingLogs.components': meetingLogs } }
+            );
+        return res.json(result);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+
 router.get('/com/:id', async function (req, res, next) {
     const comId = req.params.id;
     const db = await connectToDB();
