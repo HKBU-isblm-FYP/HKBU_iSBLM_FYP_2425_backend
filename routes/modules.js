@@ -48,23 +48,27 @@ router.post('/create/:id', async function (req, res, next) {
     const studentid = req.params.id;
     const db = await connectToDB();
     try {
-        // Fetch the template
-        const template = await db.collection('moduleTemp').find().toArray();
+        // Fetch the new collection's document to get templateIds
+        const newCollection = await db.collection('adaptedTemp').findOne({}); // Replace 'newCollectionName' with the actual collection name
+        const templateIds = newCollection.templateIds.map(id => new ObjectId(id.$oid));
 
-        // Insert the student ID into each module in the template and remove the _id field
-        const modulesWithStudentId = template.map(module => {
-            const { _id, ...moduleWithoutId } = module;
+        // Fetch the templates using templateIds
+        const templates = await db.collection('moduleTemp').find({ _id: { $in: templateIds } }).toArray();
+
+        // Insert the student ID into each template and remove the _id field
+        const modulesWithStudentId = templates.map(template => {
+            const { _id, ...templateWithoutId } = template;
             return {
-                ...moduleWithoutId,
+                ...templateWithoutId,
                 student: new ObjectId(studentid)
             };
         });
 
-        // Insert the modified modules into the 'modules' collection
+        // Insert the modified templates into the 'modules' collection
         const insertResult = await db.collection('modules').insertMany(modulesWithStudentId);
 
         // Fetch the inserted documents to sort them
-        const insertedModules = await db.collection('modules').find({ student: studentid }).toArray();
+        const insertedModules = await db.collection('modules').find({ student: new ObjectId(studentid) }).toArray();
         insertedModules.sort((a, b) => a.sem.localeCompare(b.sem));
 
         res.json(insertedModules);
@@ -75,6 +79,7 @@ router.post('/create/:id', async function (req, res, next) {
         }
     }
 });
+
 router.put('/meetings/delete/:id', async function (req, res, next) {
     const moduleid = req.params.id;
     const db = await connectToDB();
