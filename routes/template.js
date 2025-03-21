@@ -464,5 +464,16 @@ router.put('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
         res.status(500).json({ message: 'Error updating resource', error });
     }
 });
-
+router.put('/moduleName/:id', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        await db.collection('moduleTemp').updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: { moduleName: req.body.moduleName } }
+        );
+        res.status(200).json({ message: 'Module title updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating module title', error });
+    }
+});
 module.exports = router;
