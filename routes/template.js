@@ -213,6 +213,20 @@ router.post('/:id/topics/:topicId/assignment', async (req, res) => {
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
             { $push: { 'topics.$.assignments': assignment } }
         );
+
+        // Create a notice for the assignment
+        const notice = {
+            due: new Date(req.body.Due),
+            type: 'assignment',
+            bid: {
+                templateID: new ObjectId(req.params.id),
+                topicID: new ObjectId(req.params.topicId),
+                assignmentID: assignment.id
+            },
+            overdue: false
+        };
+        await db.collection('notices').insertOne(notice);
+
         res.status(200).json({ assignment });
     } catch (error) {
         res.status(500).json({ message: 'Error adding assignment', error });
@@ -311,11 +325,19 @@ router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
             }
         }
 
+        // Update the assignment
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId), 'topics.assignments.id': new ObjectId(req.params.assignmentId) },
             { $set: { 'topics.$.assignments.$[assignment].title': title, 'topics.$.assignments.$[assignment].description': description, 'topics.$.assignments.$[assignment].Due': Due, 'topics.$.assignments.$[assignment].files': files } },
             { arrayFilters: [{ 'assignment.id': new ObjectId(req.params.assignmentId) }] }
         );
+
+        // Update the corresponding notice
+        await db.collection('notices').updateOne(
+            { 'bid.assignmentID': new ObjectId(req.params.assignmentId) },
+            { $set: { due: new Date(Due) } }
+        );
+
         res.status(200).json({ message: 'Assignment updated successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error updating assignment', error });
@@ -383,10 +405,16 @@ router.delete('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) 
                 await deleteBlob(file.file.blobName);
             }
         }
+
+        // Delete the assignment
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
             { $pull: { 'topics.$.assignments': { id: new ObjectId(req.params.assignmentId) } } }
         );
+
+        // Delete the corresponding notice
+        await db.collection('notices').deleteOne({ 'bid.assignmentID': new ObjectId(req.params.assignmentId) });
+
         res.status(200).json({ message: 'Assignment deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting assignment', error });
