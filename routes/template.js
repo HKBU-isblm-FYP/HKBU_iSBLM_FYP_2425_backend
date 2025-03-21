@@ -67,12 +67,6 @@ router.post('/create', async function (req, res, next) {
     }
 });
 
-
-
-
-
-
-
 router.get('/:id', async function (req, res, next) {
     const db = await connectToDB();
     try {
@@ -119,7 +113,7 @@ router.patch('/:id/topics/:topicId', async (req, res) => {
 router.post('/:id/topics/:topicId/activity', async (req, res) => {
     const db = await connectToDB();
     try {
-        const block = { ...req.body, id: new ObjectId() };
+        const block = { ...req.body, id: new ObjectId(), Opened: new Date() };
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
             { $push: { 'topics.$.activities': block } }
@@ -133,7 +127,7 @@ router.post('/:id/topics/:topicId/activity', async (req, res) => {
 router.post('/:id/topics/:topicId/assignment', async (req, res) => {
     const db = await connectToDB();
     try {
-        let assignment = { ...req.body, id: new ObjectId(), files: [] };
+        let assignment = { ...req.body, id: new ObjectId(), files: [], Opened: new Date() };
         if (req.files && req.files.file) {
             const files = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
             for (const file of files) {
@@ -157,7 +151,7 @@ router.post('/:id/topics/:topicId/assignment', async (req, res) => {
 router.post('/:id/topics/:topicId/resource', async (req, res) => {
     const db = await connectToDB();
     try {
-        let resource = { ...req.body, id: new ObjectId(), files: [] };
+        let resource = { ...req.body, id: new ObjectId(), files: [], Opened: new Date() };
         if (req.files && req.files.file) {
             const files = Array.isArray(req.files.file) ? req.files.file : [req.files.file];
             for (const file of files) {
@@ -208,8 +202,6 @@ router.put('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
     }
 });
 
-
-
 router.get('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => {
     const db = await connectToDB();
     try {
@@ -227,7 +219,7 @@ router.get('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
 router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => {
     const db = await connectToDB();
     try {
-        const { title, description, dueDate } = req.body;
+        const { title, description, Due } = req.body;
         let files = [];
 
         // Add fetched files to the files array
@@ -250,7 +242,7 @@ router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
 
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId), 'topics.assignments.id': new ObjectId(req.params.assignmentId) },
-            { $set: { 'topics.$.assignments.$[assignment].title': title, 'topics.$.assignments.$[assignment].description': description, 'topics.$.assignments.$[assignment].dueDate': dueDate, 'topics.$.assignments.$[assignment].files': files } },
+            { $set: { 'topics.$.assignments.$[assignment].title': title, 'topics.$.assignments.$[assignment].description': description, 'topics.$.assignments.$[assignment].Due': Due, 'topics.$.assignments.$[assignment].files': files } },
             { arrayFilters: [{ 'assignment.id': new ObjectId(req.params.assignmentId) }] }
         );
         res.status(200).json({ message: 'Assignment updated successfully' });
@@ -397,6 +389,5 @@ router.put('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
         res.status(500).json({ message: 'Error updating resource', error });
     }
 });
-
 
 module.exports = router;
