@@ -22,15 +22,17 @@ router.post('/create', async function (req, res, next) {
     const db = await connectToDB();
     try {
         const template = req.body;
-        if (template.blueprintYearPlan) {
-            const existingTemplate = await db.collection('moduleTemp').find({ yearPlan: template.blueprintYearPlan }).toArray();
+        if (template.blueprintTitle) { // Use blueprintTitle instead of blueprintYearPlan
+            const existingTemplate = await db.collection('moduleTemp').find({ title: template.blueprintTitle }).toArray(); // Query by title
             if (existingTemplate.length > 0) {
-                const currentTemplate = await db.collection('moduleTemp').find({ yearPlan: template.yearPlan }).toArray();
+                const currentTemplate = await db.collection('moduleTemp').find({ title: template.title }).toArray();
                 if (currentTemplate.length > 0) {
                     await db.collection('moduleTemp').deleteMany({ yearPlan: template.yearPlan });
                 }
-                existingTemplate.forEach(async (module) => {
-                    module.yearPlan = template.yearPlan;
+                existingTemplate.forEach(module => {
+                    module.yearPlan = template.yearPlan.toString();
+                    module.title = template.title; // Update title for the new template
+                    delete module._id; // Remove the existing _id to allow MongoDB to generate a new one
                 });
                 for (const module of existingTemplate) {
                     await db.collection('moduleTemp').insertOne(module);
@@ -41,7 +43,7 @@ router.post('/create', async function (req, res, next) {
             if (currentTemplate.length > 0) {
                 await db.collection('moduleTemp').deleteMany({ yearPlan: template.yearPlan });
             }
-            const details = req.body.details
+            const details = req.body.details;
             const yearPlan = template.yearPlan.toString();
             const modules = [];
 
@@ -51,7 +53,8 @@ router.post('/create', async function (req, res, next) {
                     modules.push({
                         moduleName: moduleName,
                         sem: sem,
-                        yearPlan: yearPlan
+                        yearPlan: yearPlan,
+                        title: template.title // Add title to each module
                     });
                 }
             }
