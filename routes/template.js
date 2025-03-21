@@ -70,6 +70,74 @@ router.post('/create', async function (req, res, next) {
     }
 });
 
+router.post('/adapt', async function (req, res, next) {
+    const db = await connectToDB();
+    try {
+        // Find the template to adapt
+        const template = await db.collection('moduleTemp').find({ title: req.body.title }).toArray();
+        if (template.length === 0) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+
+        // Update the adapted attribute in the original template
+        await db.collection('moduleTemp').updateMany(
+            { title: req.body.title },
+            { $set: { adapted: true } }
+        );
+
+        // Ensure only one document exists in the adaptedTemp collection
+        const adaptedEntry = {
+            adapt: true,
+            title: req.body.title,
+            yearPlan: req.body.yearPlan,
+            templateIds: template.map(module => module._id)
+        };
+        await db.collection('adaptedTemp').replaceOne({}, adaptedEntry, { upsert: true });
+
+        return res.status(200).json({ message: 'Template adapted successfully', adaptedEntry });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+
+router.delete('/delete', async function (req, res, next) {
+    const db = await connectToDB();
+    try {
+        const title = req.query.title; // Get title from query parameter
+        if (!title) {
+            return res.status(400).json({ error: 'Title is required' });
+        }
+
+        // Find and delete the template
+        const template = await db.collection('moduleTemp').find({ title }).toArray();
+        if (template.length === 0) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+        await db.collection('moduleTemp').deleteMany({ title });
+
+        // Remove associated entry from adaptedTemp
+        await db.collection('adaptedTemp').deleteMany({
+            templateIds: { $in: template.map(module => module._id) }
+        });
+
+        return res.status(200).json({ message: 'Template deleted successfully' });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+router.get('/adapted', async function (req, res, next) {
+    const db = await connectToDB();
+    try {
+        const adapted = await db.collection('adaptedTemp').findOne({});
+        return res.json(adapted || {});
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({ error: err.toString() });
+    }
+});
+
 router.get('/:id', async function (req, res, next) {
     const db = await connectToDB();
     try {
@@ -253,6 +321,7 @@ router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
         res.status(500).json({ message: 'Error updating assignment', error });
     }
 });
+
 router.delete('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
     const db = await connectToDB();
     try {
@@ -265,6 +334,7 @@ router.delete('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
         res.status(500).json({ message: 'Error deleting activity', error });
     }
 });
+
 router.delete('/:id/topics/:topicId', async (req, res) => {
     const db = await connectToDB();
     try {
@@ -299,6 +369,7 @@ router.delete('/:id/topics/:topicId', async (req, res) => {
         res.status(500).json({ message: 'Error deleting topic', error });
     }
 });
+
 router.delete('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => {
     const db = await connectToDB();
     try {
@@ -321,6 +392,7 @@ router.delete('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) 
         res.status(500).json({ message: 'Error deleting assignment', error });
     }
 });
+
 router.delete('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
     const db = await connectToDB();
     try {
