@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
 const { createBlob } = require('../utils/azure-blob');
-
+const { deleteBlob } = require('../utils/azure-blob');  
 router.get('/all/:id', async function (req, res, next) {
     const studentid = req.params.id;
     let modules = [];
@@ -400,13 +400,14 @@ router.delete('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) 
                 await deleteBlob(file.file.blobName);
             }
         }
-
+        
         await db.collection('modules').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
             { $pull: { 'topics.$.assignments': { id: new ObjectId(req.params.assignmentId) } } }
         );
         res.status(200).json({ message: 'Assignment deleted successfully' });
     } catch (error) {
+        console.log(error)
         res.status(500).json({ message: 'Error deleting assignment', error });
     }
 });
@@ -489,7 +490,6 @@ router.delete('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
         res.status(200).json({ message: 'Resource deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting resource', error });
-    }
-});
+    }});
 
 module.exports = router;
