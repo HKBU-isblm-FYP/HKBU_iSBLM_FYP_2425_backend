@@ -15,12 +15,15 @@ router.get('/', async (req, res) => {
     const countProjects = await db.collection('projects').countDocuments();
     const countUsers = await db.collection('users').countDocuments();
 
-    const countSupervisors = await db.collection('users').countDocuments({ isSupervisor: true });
+    // const countSupervisors = await db.collection('users').countDocuments({ isSupervisor: true });
+
+    const countSupervisors = await db.collection('users').aggregate([
+      { $match: { isSupervisor: true } }, // Filter for students
+    ]).toArray();
 
     //Here shall return the calcualted relevant data for the use of the frontend.
-
     const countStudentsByMajor = await db.collection('users').aggregate([
-      { $match: { isStudent: true } }, // Filter for students
+      { $match: { isStudent: true, major: { $ne: null } } }, // Filter for students
       { $group: { _id: "$major", count: { $sum: 1 } } } // Group by major and count
     ]).toArray();
 
