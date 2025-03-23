@@ -13,6 +13,7 @@ router.get('/all', async (req, res) => {
 
   try {
     const search = req.query.search || '';
+    const years = req.query.years; // Get the year from query parameters
 
     let MECE = req.headers['x-mece'];
     MECE = MECE ? MECE.split(',').map(id => new ObjectId(id)) : []; //Need to be array to pass to $nin
@@ -24,17 +25,16 @@ router.get('/all', async (req, res) => {
 
     let query = {};
     if (search) {
-      query.title = { $regex: new RegExp(search, 'i') };
+      query.title = { $regex: new RegExp(search, 'i') }; // Filter by title
+    }
+    if (years) {
+      query.years = years; // Filter by years
     }
 
     let pipeline = [
       {
-        $match: search ? {
-          title: { $regex: new RegExp(search, 'i') }
-        } : {}
-      },
-      {
         $match: {
+          ...query, // Include both title and year filters
           _id: { $nin: MECE } // These are the Exclude IDS.
         }
       },
@@ -48,12 +48,8 @@ router.get('/all', async (req, res) => {
     const lessons = await db.collection('lessons').aggregate(pipeline).toArray();
     let countPipeline = [
       {
-        $match: search ? {
-          title: { $regex: new RegExp(search, 'i') }
-        } : {}
-      },
-      {
         $match: {
+          ...query, // Include both title and year filters
           _id: { $nin: MECE } // These are the Exclude IDS.
         }
       },
