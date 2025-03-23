@@ -35,6 +35,9 @@ router.get('/getCourses/:years/:prefix', async function (req, res, next) {
 });
 
 
+/**
+ * The Course just means it is connected to AR.. This is save to Lesson Collection
+ */
 router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
     const db = await connectToDB();
 
