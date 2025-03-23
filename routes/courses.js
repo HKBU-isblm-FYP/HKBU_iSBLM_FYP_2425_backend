@@ -50,7 +50,7 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
         const html = response.data;
         const $ = cheerio.load(html);
 
-        const existingCourses = await db.collection('courses').find({}).toArray();
+        const existingCourses = await db.collection('lessons').find({}).toArray();
 
         const coursePromises = $('.course-item').map(async (i, element) => {
             const title = $(element).find('h5').text().trim();
@@ -87,10 +87,10 @@ router.get('/fetchCourses/:years/:prefix', async function (req, res, next) {
 
             if (!courseExists) {
                 console.log('adding', course);
-                await db.collection('courses').insertOne(course);
+                await db.collection('lessons').insertOne(course);
                 newlyAddedCourses.push({ course });
             } else {
-                await db.collection('courses').updateOne({ title: course.title }, { $set: course });
+                await db.collection('lessons').updateOne({ title: course.title }, { $set: course });
             }
         });
 
@@ -133,7 +133,7 @@ router.get('/fetchAllCourses', async function (req, res, next) {
                 const html = response.data;
                 const $ = cheerio.load(html);
 
-                const existingCourses = await db.collection('courses').find({}).toArray();
+                const existingCourses = await db.collection('lessons').find({}).toArray();
 
                 const coursePromises = $('.course-item').map(async (i, element) => {
                     const title = $(element).find('h5').text().trim();
@@ -154,6 +154,24 @@ router.get('/fetchAllCourses', async function (req, res, next) {
                         years: year,
                         units,
                         creationDate: new Date(),
+                        md: `
+# Course Code: ${courseCode}
+
+**Years:** ${year}
+
+**Units:** ${units}
+
+## Title: ${title}
+
+**Prerequisite:** 
+\`\`\`
+${prerequisite}
+\`\`\`
+
+### Description
+
+${description}
+`
                     };
 
                     const courseExists = existingCourses.some(existingCourse =>
@@ -166,10 +184,10 @@ router.get('/fetchAllCourses', async function (req, res, next) {
 
                     if (!courseExists) {
                         console.log('Adding new course:', course);
-                        await db.collection('courses').insertOne(course);
+                        await db.collection('lessons').insertOne(course);
                         newlyAddedCourses.push(course);
                     } else {
-                        await db.collection('courses').updateOne({ title: course.title }, { $set: course });
+                        await db.collection('lessons').updateOne({ title: course.title }, { $set: course });
                     }
                 });
 
