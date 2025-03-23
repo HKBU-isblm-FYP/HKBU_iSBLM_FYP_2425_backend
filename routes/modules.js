@@ -1,8 +1,10 @@
 var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
-const { createBlob } = require('../utils/azure-blob');
-const { deleteBlob } = require('../utils/azure-blob');  
+const { createBlob, deleteBlob } = require('../utils/azure-blob');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
+
 router.get('/all/:id', async function (req, res, next) {
     const studentid = req.params.id;
     let modules = [];
@@ -185,64 +187,90 @@ router.put('/meetingLogs/delete/:id', async function (req, res, next) {
     }
 });
 
-router.get('/com/:id', async function (req, res, next) {
-    const comId = req.params.id;
+router.get('/assignment/:id/:topicId/:assignmentId', async (req, res) => {
     const db = await connectToDB();
     try {
-        const com = await db.collection('components')
-            .findOne({ _id: new ObjectId(comId) });
-        return res.json(com);
-    } catch (err) {
-        console.log(err);
-        return res.status(500).json({ error: err.toString() });
-    }
-});
-
-
-router.put('/com/file/sub/:id', async function (req, res, next) {
-    const comId = req.params.id;
-    const db = await connectToDB();
-    file = await createBlob(req.files.file.name, req.files.file.data);
-    req.body.file = file;
-
-    const submission = {
-        file: req.body.file,
-        fileName: req.body.fileName,
-        submitTime: new Date()
-    };
-    try {
-        const result = await db.collection('components')
-            .updateOne(
-                { _id: new ObjectId(comId) },
-                { $set: { 'submission': submission } }
-            );
-
-        if (result.modifiedCount === 1) {
-            return res.status(200).json({ message: 'Update successful' });
+        const { id, topicId, assignmentId } = req.params;
+        const module = await db.collection('modules').findOne(
+            { _id: new ObjectId(id), 'topics.id': new ObjectId(topicId) },
+            { projection: { 'topics.$': 1 } }
+        );
+        const assignment = module.topics[0].assignments.find(ass => ass.id.equals(new ObjectId(assignmentId)));
+        console.log(assignment)
+        if (assignment) {
+            res.status(200).json(assignment);
         } else {
-            return res.status(404).json({ message: 'Component not found' });
+            res.status(404).json({ message: 'Assignment not found' });
         }
-    } catch (err) {
-        console.log(err);
-        return res.status(500).json({ error: err.toString() });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching assignment', error });
     }
 });
-router.put('/com/:id/grade', async function (req, res, next) {
-    const comId = req.params.id;
+
+router.put('/assignment/:id/:topicId/:assignmentId/submit', async (req, res) => {
     const db = await connectToDB();
+    const { id, topicId, assignmentId } = req.params;
+
     try {
-        const result = await db.collection('components')
-            .updateOne(
-                { _id: new ObjectId(comId) },
-                { $set: { 'grade': req.body.grade } }
-            );
-        return res.json(result);
-    }
-    catch (err) {
-        console.log(err);
-        return res.status(500).json({ error: err.toString() });
+        const assignmentSubmission = {
+            submittedAt: new Date(),
+            files: [],
+            link: req.body.link || null,
+        };
+
+        // Fetch the existing assignment to delete old files
+        const module = await db.collection('modules').findOne(
+            { _id: new ObjectId(id), 'topics.id': new ObjectId(topicId) },
+            { projection: { 'topics.$': 1 } }
+        );
+
+        const assignment = module.topics[0].assignments.find(ass => ass.id.equals(new ObjectId(assignmentId)));
+        if (assignment && assignment.submission && assignment.submission.files) {
+            for (const file of assignment.submission.files) {
+                await deleteBlob(file.file.blobName);
+            }
+        }
+
+        // Handle file uploads
+        if (req.files && req.files.files) {
+            const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+            for (const file of files) {
+                const blob = await createBlob(file.name, file.data);
+                assignmentSubmission.files.push({
+                    fileName: file.name,
+                    file: blob,
+                });
+            }
+        }
+
+        // Update the assignment with the new submission
+        const result = await db.collection('modules').updateOne(
+            {
+                _id: new ObjectId(id),
+                'topics.id': new ObjectId(topicId),
+                'topics.assignments.id': new ObjectId(assignmentId),
+            },
+            {
+                $set: {
+                    'topics.$.assignments.$[assignment].submission': assignmentSubmission,
+                },
+            },
+            {
+                arrayFilters: [{ 'assignment.id': new ObjectId(assignmentId) }],
+            }
+        );
+
+        if (result.modifiedCount > 0) {
+            res.status(200).json({ message: 'Submission uploaded successfully' });
+        } else {
+            res.status(404).json({ message: 'Assignment not found' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error submitting assignment', error });
     }
 });
+
 
 router.put('/:id/topics', async (req, res) => {
     const db = await connectToDB();
@@ -287,6 +315,19 @@ router.delete('/:id/topics/:topicId', async (req, res) => {
         res.status(500).json({ message: 'Error deleting topic', error });
     }
 });
+router.get('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        const module = await db.collection('modules').findOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { projection: { 'topics.$': 1 } }
+        );
+        const activity = module.topics[0].activities.find(act => act.id.equals(new ObjectId(req.params.activityId)));
+        res.status(200).json(activity);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching activity', error });
+    }
+});
 
 router.post('/:id/topics/:topicId/activity', async (req, res) => {
     const db = await connectToDB();
@@ -317,6 +358,7 @@ router.put('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
     }
 });
 
+
 router.delete('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
     const db = await connectToDB();
     try {
@@ -329,6 +371,21 @@ router.delete('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
         res.status(500).json({ message: 'Error deleting activity', error });
     }
 });
+
+router.get('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        const module = await db.collection('modules').findOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { projection: { 'topics.$': 1 } }
+        );
+        const assignment = module.topics[0].assignments.find(ass => ass.id.equals(new ObjectId(req.params.assignmentId)));
+        res.status(200).json(assignment);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching assignment', error });
+    }
+});
+
 
 router.post('/:id/topics/:topicId/assignment', async (req, res) => {
     const db = await connectToDB();
@@ -400,7 +457,7 @@ router.delete('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) 
                 await deleteBlob(file.file.blobName);
             }
         }
-        
+
         await db.collection('modules').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
             { $pull: { 'topics.$.assignments': { id: new ObjectId(req.params.assignmentId) } } }
@@ -411,7 +468,19 @@ router.delete('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) 
         res.status(500).json({ message: 'Error deleting assignment', error });
     }
 });
-
+router.get('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
+    const db = await connectToDB();
+    try {
+        const module = await db.collection('modules').findOne(
+            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
+            { projection: { 'topics.$': 1 } }
+        );
+        const resource = module.topics[0].resources.find(res => res.id.equals(new ObjectId(req.params.resourceId)));
+        res.status(200).json(resource);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching resource', error });
+    }
+});
 router.post('/:id/topics/:topicId/resource', async (req, res) => {
     const db = await connectToDB();
     try {
@@ -490,6 +559,7 @@ router.delete('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
         res.status(200).json({ message: 'Resource deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting resource', error });
-    }});
+    }
+});
 
 module.exports = router;
