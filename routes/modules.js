@@ -50,16 +50,16 @@ router.post('/create/:id', async function (req, res, next) {
     try {
         // Fetch the new collection's document to get templateIds
         const newCollection = await db.collection('adaptedTemp').findOne({}); // Replace 'newCollectionName' with the actual collection name
-        const templateIds = newCollection.templateIds.map(id => new ObjectId(id.$oid));
+        const templateIds = newCollection.templateIds.map(id => new ObjectId(id));
 
         // Fetch the templates using templateIds
         const templates = await db.collection('moduleTemp').find({ _id: { $in: templateIds } }).toArray();
 
-        // Insert the student ID into each template and remove the _id field
+        // Insert the student ID into each template, remove the _id field, and remove the 'adapted' attribute
         const modulesWithStudentId = templates.map(template => {
-            const { _id, ...templateWithoutId } = template;
+            const { _id, adapted, ...templateWithoutIdAndAdapted } = template;
             return {
-                ...templateWithoutId,
+                ...templateWithoutIdAndAdapted,
                 student: new ObjectId(studentid)
             };
         });
