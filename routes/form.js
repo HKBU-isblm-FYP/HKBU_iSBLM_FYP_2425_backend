@@ -305,6 +305,11 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                 { $set: { blueprint: false } }
             );
 
+            await db.collection('users').updateOne(
+                { _id: new ObjectId(studentId) },
+                { $set: { major: form.proposedMajor } }
+            );
+
 
         }
         res.json(updatedForm);
