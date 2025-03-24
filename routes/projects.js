@@ -144,6 +144,10 @@ router.post('/create', async (req, res) => {
   project.major = project.member[0].major; 
   project.semester = project.member[0].semester; 
 
+  project.sid = project.member[0].id;
+
+  project.blueprint = false;
+
   project.member.forEach((x, i) => {
     project.member[i] = {
       id: new ObjectId(x.id),
@@ -157,7 +161,8 @@ router.post('/create', async (req, res) => {
   const db = await connectToDB();
   // Insert the project data into MongoDB
   try {
-    const result = await db.collection('projects').insertOne(project);
+    const result = await db.collection('studyPlans').insertOne(project);
+    // const result = await db.collection('projects').insertOne(project);
     const id = result.insertedId;
 
     res.json(id);
