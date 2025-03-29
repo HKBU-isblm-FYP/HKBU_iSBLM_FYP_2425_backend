@@ -244,4 +244,31 @@ ${description}
     }
 });
 
+router.get('/cleanCourseCode', async function (req, res, next) {
+    const db = await connectToDB();
+
+    try {
+        const lessons = await db.collection('lessons').find({ courseCode: null }).toArray();
+
+        const updatePromises = lessons.map(async (lesson) => {
+            const titleParts = lesson.title.split(' ');
+            const courseCode = titleParts.slice(0, 2).join(' ');
+
+            await db.collection('lessons').updateOne(
+                { _id: lesson._id },
+                { $set: { courseCode } }
+            );
+
+            console.log(`Updated courseCode for lesson with _id: ${lesson._id} to ${courseCode}`);
+        });
+
+        await Promise.all(updatePromises);
+
+        res.json({ message: 'All null courseCodes have been updated' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.toString() });
+    }
+});
+
 module.exports = router;
