@@ -4,7 +4,7 @@ var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
 
 // Route to get information to fill in Admin Dashboard
-router.get('/', async (req, res) => {
+router.get('/:selectedYear', async (req, res) => {
   console.log("Get Admin Dashboard");
   const db = await connectToDB();
 
@@ -14,6 +14,13 @@ router.get('/', async (req, res) => {
     const countCourses = await db.collection('lessons').countDocuments();
     const countProjects = await db.collection('projects').countDocuments();
     const countUsers = await db.collection('users').countDocuments();
+
+    const countCourseByYear = await db.collection('lessons').aggregate([
+      { $match: { years: req.params.selectedYear } }, // Filter for students
+      { $group: { _id: "$years", count: { $sum: 1 } } } // Group by major and count
+    ]).toArray();
+
+    console.log(countCourseByYear);
 
     // const countSupervisors = await db.collection('users').countDocuments({ isSupervisor: true });
 
@@ -29,7 +36,7 @@ router.get('/', async (req, res) => {
 
     console.log(countStudentsByMajor);
 
-    res.json({ courses: countCourses, projects: countProjects, users: countUsers, supervisors: countSupervisors, countStudentsByMajor: countStudentsByMajor });
+    res.json({ courses: countCourseByYear[0].count, projects: countProjects, users: countUsers, supervisors: countSupervisors, countStudentsByMajor: countStudentsByMajor });
 
   } catch (err) {
     console.log(err);
