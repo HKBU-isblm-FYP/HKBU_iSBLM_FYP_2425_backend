@@ -15,12 +15,22 @@ router.get('/:selectedYear', async (req, res) => {
     const countProjects = await db.collection('projects').countDocuments();
     const countUsers = await db.collection('users').countDocuments();
 
-    const countCourseByYear = await db.collection('lessons').aggregate([
+    const countStudents = await db.collection('users').countDocuments({ isStudent: true });
+
+    const countStudentsByYearArray = await db.collection('users').aggregate([
+      { $match: { isStudent: true, admissionYear: req.params.selectedYear } }, // Filter for students 
+      { $group: { _id: "$years", count: { $sum: 1 } } } // Group by major and count
+    ]).toArray();
+    const countStudentsByYear = countStudentsByYearArray.length > 0 ? countStudentsByYearArray[0].count : 0;
+
+    console.log(countStudentsByYear);
+
+    const countCourseByYearArray = await db.collection('lessons').aggregate([
       { $match: { years: req.params.selectedYear } }, // Filter for students
       { $group: { _id: "$years", count: { $sum: 1 } } } // Group by major and count
     ]).toArray();
-
-    console.log(countCourseByYear);
+    const countCourseByYear = countCourseByYearArray.length > 0 ? countCourseByYearArray[0].count : 0;
+    console.log(countCourseByYearArray);
 
     // const countSupervisors = await db.collection('users').countDocuments({ isSupervisor: true });
 
@@ -29,14 +39,16 @@ router.get('/:selectedYear', async (req, res) => {
     ]).toArray();
 
     //Here shall return the calcualted relevant data for the use of the frontend.
-    const countStudentsByMajor = await db.collection('users').aggregate([
+    const countStudentsByMajorArray = await db.collection('users').aggregate([
       { $match: { isStudent: true, major: { $ne: null } } }, // Filter for students
       { $group: { _id: "$major", count: { $sum: 1 } } } // Group by major and count
     ]).toArray();
+    console.log(countStudentsByMajorArray);
 
-    console.log(countStudentsByMajor);
-
-    res.json({ courses: countCourseByYear[0].count, projects: countProjects, users: countUsers, supervisors: countSupervisors, countStudentsByMajor: countStudentsByMajor });
+    res.json({
+      courses: countCourseByYear, projects: countProjects, users: countUsers,
+      supervisors: countSupervisors, students: countStudentsByYear, countStudentsByMajor: countStudentsByMajorArray
+    });
 
   } catch (err) {
     console.log(err);
