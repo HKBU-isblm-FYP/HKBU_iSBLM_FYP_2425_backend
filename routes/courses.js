@@ -252,7 +252,7 @@ router.get('/cleanCourseCode', async function (req, res, next) {
 
         const updatePromises = lessons.map(async (lesson) => {
             const titleParts = lesson.title.split(' ');
-            const courseCode = titleParts.slice(0, 2).join(' ');
+            const courseCode = titleParts.slice(0, 2).join('');
 
             await db.collection('lessons').updateOne(
                 { _id: lesson._id },
@@ -263,6 +263,20 @@ router.get('/cleanCourseCode', async function (req, res, next) {
         });
 
         await Promise.all(updatePromises);
+
+        const lessons1 = await db.collection('lessons').find({ courseCode: { $regex: /\s/ } }).toArray();
+        const updatePromises1 = lessons1.map(async (lesson) => {
+            const courseCode = lesson.courseCode.replace(/\s+/g, '');
+
+            await db.collection('lessons').updateOne(
+                { _id: lesson._id },
+                { $set: { courseCode } }
+            );
+
+            console.log(`Updated courseCode for lesson with _id: ${lesson._id} to ${courseCode}`);
+        });
+
+        await Promise.all(updatePromises1);
 
         res.json({ message: 'All null courseCodes have been updated' });
     } catch (err) {
