@@ -39,11 +39,18 @@ router.get('/:selectedYear', async (req, res) => {
     ]).toArray();
 
     //Here shall return the calcualted relevant data for the use of the frontend.
-    const countStudentsByMajorArray = await db.collection('users').aggregate([
-      { $match: { isStudent: true, major: { $ne: null } } }, // Filter for students
+    let countStudentsByMajorArray = await db.collection('users').aggregate([
+      { $match: { isStudent: true, major: { $ne: null }, admissionYear: req.params.selectedYear } }, // Filter for students
       { $group: { _id: "$major", count: { $sum: 1 } } } // Group by major and count
     ]).toArray();
     console.log(countStudentsByMajorArray);
+
+    if (countStudentsByMajorArray.length === 0) {
+      countStudentsByMajorArray = await db.collection('users').aggregate([
+        { $match: { isStudent: true, major: { $ne: null } } }, // Filter for students
+        { $group: { _id: "$major", count: { $sum: 0 } } } // Group by major and count
+      ]).toArray();
+    }
 
     res.json({
       courses: countCourseByYear, projects: countProjects, users: countUsers,
