@@ -156,8 +156,6 @@ router.post('/create', async (req, res) => {
     }
   })
 
-
-
   const db = await connectToDB();
   // Insert the project data into MongoDB
   try {

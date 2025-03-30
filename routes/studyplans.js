@@ -128,14 +128,18 @@ router.get('/ct/:id', async function (req, res, next) {
     }
 });
 
+
 router.get('/:id/:pid', async function (req, res, next) {
     const studentId = req.params.id;
     let ProgressStudyPlan = [];
     const db = await connectToDB();
 
+    console.log(studentId, req.params.pid);
+
     try {
         // studyPlan = await db.collection('studyPlans').findOne({ sid: new ObjectId(studentId) });
         ProgressStudyPlan = await db.collection('studyPlans').findOne({ sid: new ObjectId(studentId), _id: new ObjectId(req.params.pid) });
+        console.log(ProgressStudyPlan);
         if (!ProgressStudyPlan) {
             return res.status(404).json({ error: 'Study plan not found for the given student ID' });
         }
@@ -177,6 +181,57 @@ router.get('/:id/:pid', async function (req, res, next) {
     res.json(ProgressStudyPlan);
 });
 
+/**
+ * Will need to restrucutre the study plan to accomodate the Y1S1, Y2S2 structure..
+ */
+router.post('/create', async (req, res) => {
+  const studyplan = req.body;
+  console.log(studyplan);
 
+  let tmp = [];
+
+  studyplan.progress.forEach((x, i) => {
+
+    // console.log(x);
+    let year = x.year;
+    let semester = x.semester;
+
+    x.data.forEach(e => {
+      e.year = year;
+      e.semester = semester;
+      e.chapterId = new ObjectId(e.id);
+      tmp.push(e);
+      // project.progress[i].data.push(e);
+      // console.log(e);
+    })
+
+    // project.progress[i] = {
+    //   chapterId: new ObjectId(x.id),
+    //   title: x.title,
+    //   isCompleted: false,
+    // }
+  })
+
+  // console.log(tmp);
+  studyplan.progress = tmp; //get the Flatten data;
+  studyplan.admissionYear = studyplan.member[0].admissionYear; 
+  studyplan.year = studyplan.member[0].year; 
+  studyplan.major = studyplan.member[0].major; 
+  studyplan.semester = studyplan.member[0].semester; 
+  studyplan.sid = new ObjectId(studyplan.member[0].id);
+  studyplan.blueprint = false;
+
+  const db = await connectToDB();
+  // Insert the project data into MongoDB
+  try {
+    const result = await db.collection('studyPlans').insertOne(studyplan);
+    // const result = await db.collection('projects').insertOne(project);
+    const id = result.insertedId;
+
+    res.json(id);
+  } catch (error) {
+    console.error(error);
+  }
+});
 
 module.exports = router;
