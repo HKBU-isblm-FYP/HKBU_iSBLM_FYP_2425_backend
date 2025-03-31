@@ -20,6 +20,17 @@ const { connectToDB, ObjectId } = require('../utils/db');
 //     res.json(studyPlan);
 // });
 
+router.get('/pending', async function (req, res, next) {
+  const db = await connectToDB();
+  try {
+    const blueprints = await db.collection('studyPlans').find({ approved: false, "approval": { $exists: true } }).toArray();
+    console.log(blueprints);
+    return res.json(blueprints);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ error: err.toString() });
+  }
+});
 
 // Route to get all projects with pagination
 router.get('/all', async (req, res) => {
@@ -184,6 +195,9 @@ router.get('/:id/:pid', async function (req, res, next) {
   res.json(ProgressStudyPlan);
 });
 
+
+
+
 function reconstructStudyplan(studyplan) {
   // Flatten the progress data
   let tmp = [];
@@ -307,5 +321,6 @@ router.post('/approval', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 module.exports = router;
