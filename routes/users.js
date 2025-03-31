@@ -11,10 +11,9 @@ router.get('/', function (req, res, next) {
 router.get('/all', async (req, res) => {
   const db = await connectToDB();
   try {
-
-    //Fix Search Query
     const search = req.query.search || '';
     const id = req.query.supervisor || '';
+    const role = req.query.role || ''; // New role filter
     const page = parseInt(req.query.page || '1');
     const perPage = parseInt(req.query.perPage || '6');
 
@@ -22,12 +21,13 @@ router.get('/all', async (req, res) => {
     if (search) {
       query.name = { $regex: new RegExp(search, 'i') };
     }
+    if (role) {
+      query.userRole = role; // Add role filter to query
+    }
 
     let pipeline = [
       {
-        $match: search ? {
-          name: { $regex: new RegExp(search, 'i') }
-        } : {}
+        $match: query
       },
       {
         $skip: (page - 1) * perPage
@@ -37,44 +37,22 @@ router.get('/all', async (req, res) => {
       }
     ];
 
-    if (id == '') {
-      const users = await db.collection('users').aggregate(pipeline).toArray();
-      let countPipeline = [
-        {
-          $match: search ? {
-            name: { $regex: new RegExp(search, 'i') }
-          } : {}
-        },
-        {
-          $count: "total"
-        }
-      ];
+    const users = await db.collection('users').aggregate(pipeline).toArray();
+    let countPipeline = [
+      {
+        $match: query
+      },
+      {
+        $count: "total"
+      }
+    ];
 
-      const countResult = await db.collection('users').aggregate(countPipeline).toArray();
-      const totalUsers = countResult.length > 0 ? countResult[0].total : 0;
-      const totalPages = Math.ceil(totalUsers / perPage);
+    const countResult = await db.collection('users').aggregate(countPipeline).toArray();
+    const totalUsers = countResult.length > 0 ? countResult[0].total : 0;
+    const totalPages = Math.ceil(totalUsers / perPage);
 
-
-      res.json({ total_pages: totalPages, users: users, size: totalUsers, perPage: perPage });
-    } else {
-
-      const users = await db.collection('users').find({ supervisor: new ObjectId(id) }).toArray();
-      let countPipeline = [
-        {
-          $match: search ? {
-            name: { $regex: new RegExp(search, 'i') }
-          } : {}
-        },
-        {
-          $count: "total"
-        }
-      ];
-      const countResult = await db.collection('users').aggregate(countPipeline).toArray();
-      const totalUsers = countResult.length > 0 ? countResult[0].total : 0;
-      const totalPages = Math.ceil(totalUsers / perPage);
-      res.json({ total_pages: totalPages, users: users, size: totalUsers, perPage: perPage });
-
-    }
+    // Include userRole in the response
+    res.json({ total_pages: totalPages, users: users, size: totalUsers, perPage: perPage });
   } catch (err) {
     console.error(err);
     res.status(500).send({ message: 'Internal Server Error' });

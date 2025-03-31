@@ -13,7 +13,7 @@ router.post('/declaration/submit', async (req, res, next) => {
             return res.status(400).json({ error: 'Invalid studentID' });
         }
         req.body.type = 'Declaration Form';
-        req.body.approval = { supervisor: false, head: false, adm1: false, adm2: false };
+        req.body.approval = { supervisor: false, head: false, director: false, adm1: false, adm2: false };
         req.body.status = 'pending';
         req.body.submittedAt = new Date();
         proposal = await createBlob(req.files.proposal.name, req.files.proposal.data);
@@ -162,13 +162,13 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                         { $set: updateFields }
                     );
 
-                    // Notify the admin
-                    const admin = await db.collection('users').findOne({ isAdmin: true });
+                    // Notify the director
+                    const director = await db.collection('users').findOne({ isDirector: true });
                     await sendEmail(
-                        admin.email,
+                        director.email,
                         'Form Approval Needed',
                         `
-                        <p>Dear ${admin.name},</p>
+                        <p>Dear ${director.name},</p>
                         <p>The form submitted by a student has been approved by the head and now requires your approval.</p>
                         <p>Form Details:</p>
                         <ul>
@@ -184,7 +184,43 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                         `
                     );
                 }
-            } if (user.isAdmin) {
+            } else if (user.isDirector) {
+                if (form.approval.head.approval === 'approved') {
+                    const director = { approval: req.body.approval, reason: req.body.reason };
+
+                    const updateFields = { "approval.director": director };
+                    if (req.body.approval === 'disapproved') {
+                        updateFields.status = 'disapproved';
+                    }
+
+                    await db.collection('form').updateOne(
+                        { _id: new ObjectId(formid) },
+                        { $set: updateFields }
+                    );
+
+                    // Notify the admin
+                    const admin = await db.collection('users').findOne({ isAdmin: true });
+                    await sendEmail(
+                        admin.email,
+                        'Form Approval Needed',
+                        `
+                        <p>Dear ${admin.name},</p>
+                        <p>The form submitted by a student has been approved by the director and now requires your approval.</p>
+                        <p>Form Details:</p>
+                        <ul>
+                            <li>Form ID: ${form._id}</li>
+                            <li>Student ID: ${form.studentID}</li>
+                            <li>Form Type: ${form.type}</li>
+                            <li>Status: ${form.status}</li>
+                        </ul>
+                        <p>Please review and approve the form at your earliest convenience.</p>
+                        <p>Thank you.</p>
+                        <p>Best regards,</p>
+                        <p>Your University Administration</p>
+                        `
+                    );
+                }
+            } else if (user.isAdmin) {
                 const admin = { approval: req.body.approval, reason: req.body.reason };
 
                 // Fetch the current form to check adm1.approval
@@ -297,12 +333,12 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
             // Update student's studyPlan blueprint to true
             await db.collection('studyPlans').updateMany(
                 { sid: new ObjectId(studentId) },
-                { $set: { blueprint: true } }
+                { $set: { current: false } }
             );
             // Update studyPlan blueprint to false
             await db.collection('studyPlans').updateOne(
                 { _id: new ObjectId(studyPlanId) },
-                { $set: { blueprint: false } }
+                { $set: { approved: true, current: true } }
             );
 
             await db.collection('users').updateOne(
