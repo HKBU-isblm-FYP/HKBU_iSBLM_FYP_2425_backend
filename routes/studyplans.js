@@ -101,11 +101,11 @@ router.get('/:id', async (req, res) => {
  * @description Get study plan for a specific student -> Reformat the Progress into a study Plan array for feeding..
  * @access Public
  */
-router.get('/bt/:id', async function (req, res, next) {
+router.get('/draft/:id', async function (req, res, next) {
     const db = await connectToDB();
     const sid = req.params.id;
     try {
-        const blueprints = await db.collection('studyPlans').find({ sid: new ObjectId(sid), blueprint: true }).toArray();
+        const blueprints = await db.collection('studyPlans').find({ sid: new ObjectId(sid), approved: false }).toArray();
         console.log(blueprints)
         return res.json(blueprints);
     } catch (err) {
@@ -114,12 +114,12 @@ router.get('/bt/:id', async function (req, res, next) {
     }
 });
 
-router.get('/ct/:id', async function (req, res, next) {
+router.get('/approved/:id', async function (req, res, next) {
     const db = await connectToDB();
     const sid = req.params.id;
 
     try {
-        const current = await db.collection('studyPlans').find({ sid: new ObjectId(sid), blueprint: false }).toArray();
+        const current = await db.collection('studyPlans').find({ sid: new ObjectId(sid), approved: true }).toArray();
         console.log(current)
         return res.json(current);
     } catch (err) {
