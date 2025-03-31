@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "env PORT=8080 node ./bin/www"
   },
   "dependencies": {
     "@azure/communication-email": "^1.0.0",
