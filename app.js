@@ -47,7 +47,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   /* options */
   cors: {
-    origin: "http://localhost:5173", //ALLOW VUE DEV TO CONNECT
+    origin: "*", //ALLOW VUE DEV TO CONNECT
   }
 });
 io.on("connection", (socket) => {
