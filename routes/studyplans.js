@@ -278,4 +278,32 @@ router.post('/update/:id', async (req, res) => {
   }
 });
 
+router.post('/approval', async (req, res) => {
+  const db = await connectToDB();
+  let studyPlan = req.body;
+
+  // Remove the original _id
+  delete studyPlan._id;
+
+  // Reconstruct the study plan object
+  studyPlan = reconstructStudyplan(studyPlan);
+
+  // Set additional fields for approval
+  studyPlan.approved = false;
+  studyPlan.current = false;
+  studyPlan.approval = {
+    supervisor: false,
+    head: false,
+    admin: false
+  };
+
+  try {
+    const result = await db.collection('studyPlans').insertOne(studyPlan);
+    res.json({ message: 'Study plan inserted successfully', id: result.insertedId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 module.exports = router;
