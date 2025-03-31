@@ -228,6 +228,13 @@ router.post('/create', async (req, res) => {
     // const result = await db.collection('projects').insertOne(project);
     const id = result.insertedId;
 
+    // Update the record of the user to save the study plan id to its studyPlan field.
+    const userId = studyplan.sid; // Assuming the user ID is in the member array
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { studyPlan: id } }
+    );
+
     res.json(id);
   } catch (error) {
     console.error(error);
