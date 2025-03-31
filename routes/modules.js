@@ -62,7 +62,15 @@ router.post('/create/:id', async function (req, res, next) {
             const { _id, adapted, ...templateWithoutIdAndAdapted } = template;
             return {
                 ...templateWithoutIdAndAdapted,
-                student: new ObjectId(studentid)
+                student: new ObjectId(studentid),
+                meetingLogs: {
+                    index: 2,
+                    components: []
+                },
+                meetings: {
+                    index: 1,
+                    components: []
+                }
             };
         });
 
