@@ -234,4 +234,34 @@ router.post('/create', async (req, res) => {
   }
 });
 
+/**
+ * @route PUT /studyPlans/:id
+ * @description Update an entire study plan by its ID
+ * @access Public
+ */
+router.post('/update/:id', async (req, res) => {
+  const studyPlanId = req.params.id;
+  const updatedStudyPlan = req.body;
+
+  console.log("Update Study Plan", updatedStudyPlan);
+
+  const db = await connectToDB();
+  try {
+    const result = await db.collection('studyPlans').updateOne(
+      { _id: new ObjectId(studyPlanId) },
+      { $set: updatedStudyPlan }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: 'Study plan not found' });
+    }
+
+    res.json({ message: 'Study plan updated successfully' });
+  } catch (err) {
+    console.error(err);
+    console.log(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 module.exports = router;
