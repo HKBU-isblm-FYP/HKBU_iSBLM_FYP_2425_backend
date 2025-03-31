@@ -151,6 +151,8 @@ router.get('/:id/:pid', async function (req, res, next) {
 
     console.log('ORIGINAL', JSON.stringify(ProgressStudyPlan, null, 2));
 
+    ProgressStudyPlan.member[0] = await db.collection('users').findOne({ _id: new ObjectId(studentId) });
+
     // Iterate through the study plan array
     ProgressStudyPlan.progress.forEach(item => {
       // Create the year object if it doesn't exist
@@ -175,6 +177,9 @@ router.get('/:id/:pid', async function (req, res, next) {
 
     // Replace the studyPlan variable with the reformatted data
     ProgressStudyPlan = reformattedStudyPlan;
+
+    ProgressStudyPlan.createdAt = ProgressStudyPlan.createdAt || new Date();
+
     console.log("Reformatted", reformattedStudyPlan);
     console.log(JSON.stringify(ProgressStudyPlan, null, 2));
   } catch (err) {
