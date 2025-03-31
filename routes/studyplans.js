@@ -296,6 +296,8 @@ router.post('/approval', async (req, res) => {
     head: false,
     admin: false
   };
+  studyPlan.created = new Date();
+  delete studyPlan.isDeclared;
 
   try {
     const result = await db.collection('studyPlans').insertOne(studyPlan);
