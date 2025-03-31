@@ -1,7 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
-
+const { sendEmail } = require('../utils/emailServices.js');
 // router.get('/:id', async function (req, res, next) {
 //     const studentId = req.params.id;
 //     let studyPlan = [];
@@ -320,6 +320,28 @@ router.post('/approval', async (req, res) => {
 
   try {
     const result = await db.collection('studyPlans').insertOne(studyPlan);
+
+    // Fetch the student using the `sid` field in the study plan
+    const student = await db.collection('users').findOne({ _id: new ObjectId(studyPlan.sid) });
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Fetch the supervisor using the `supervisor` field in the student document
+    const supervisor = await db.collection('users').findOne({ _id: new ObjectId(student.supervisor) });
+    if (supervisor) {
+      const emailContent = `
+        <p>Dear ${supervisor.name},</p>
+        <p>A new study plan has been submitted by your student, <strong>${student.name}</strong>, and requires your approval.</p>
+        <p>Study Plan Title: ${studyPlan.title}</p>
+        <p>Please review and approve the study plan at your earliest convenience.</p>
+        <p>Thank you.</p>
+        <p>Best regards,</p>
+        <p>Your University Administration</p>
+      `;
+      await sendEmail(supervisor.email, 'Study Plan Approval Needed', emailContent);
+    }
+
     res.json({ message: 'Study plan inserted successfully', id: result.insertedId });
   } catch (err) {
     console.error(err);
@@ -327,5 +349,118 @@ router.post('/approval', async (req, res) => {
   }
 });
 
+router.put('/:studyPlanID/approval/:uid', async (req, res) => {
+  const db = await connectToDB();
+  const studyPlanID = req.params.studyPlanID;
+  const uid = req.params.uid;
+
+  try {
+    // Fetch the study plan
+    const studyPlan = await db.collection('studyPlans').findOne({ _id: new ObjectId(studyPlanID) });
+    if (!studyPlan) {
+      return res.status(404).json({ error: 'Study plan not found' });
+    }
+
+    // Fetch the user making the approval
+    const user = await db.collection('users').findOne({ _id: new ObjectId(uid) });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Determine the role of the approver and update the corresponding approval field
+    let updateFields = {};
+    if (user.isSupervisor) {
+      updateFields = { "approval.supervisor": { approval: req.body.approval, reason: req.body.reason } };
+    } else if (user.isHead) {
+      if (studyPlan.approval.supervisor?.approval === "approved") {
+        updateFields = { "approval.head": { approval: req.body.approval, reason: req.body.reason } };
+      } else {
+        return res.status(400).json({ error: 'Supervisor approval is required first' });
+      }
+    } else if (user.isAdmin) {
+      if (studyPlan.approval.head?.approval === "approved") {
+        updateFields = { "approval.admin": { approval: req.body.approval, reason: req.body.reason } };
+      } else {
+        return res.status(400).json({ error: 'Head approval is required first' });
+      }
+    } else {
+      return res.status(403).json({ error: 'User is not authorized to approve this study plan' });
+    }
+
+    // Update the study plan approval status
+    if (req.body.approval === "approved") {
+      if (user.isAdmin) {
+        updateFields.approved = true;
+        updateFields.current = true;
+        updateFields.approvedAt = new Date();
+
+        // Set all other study plans for the student to `current: false`
+        await db.collection('studyPlans').updateMany(
+          { sid: studyPlan.sid, _id: { $ne: new ObjectId(studyPlanID) } },
+          { $set: { current: false } }
+        );
+      }
+    } else {
+      updateFields.approved = false;
+      updateFields.current = false;
+    }
+
+    await db.collection('studyPlans').updateOne(
+      { _id: new ObjectId(studyPlanID) },
+      { $set: updateFields }
+    );
+
+    // Notify the next approver
+    if (req.body.approval === "approved") {
+      if (user.isSupervisor) {
+        const head = await db.collection('users').findOne({ isHead: true });
+        if (head) {
+          const emailContent = `
+            <p>Dear ${head.name},</p>
+            <p>The study plan titled <strong>${studyPlan.title}</strong> has been approved by the supervisor and now requires your approval.</p>
+            <p>Please review and approve the study plan at your earliest convenience.</p>
+            <p>Thank you.</p>
+            <p>Best regards,</p>
+            <p>Your University Administration</p>
+          `;
+          await sendEmail(head.email, 'Study Plan Approval Needed', emailContent);
+        }
+      } else if (user.isHead) {
+        const admin = await db.collection('users').findOne({ isAdmin: true });
+        if (admin) {
+          const emailContent = `
+            <p>Dear ${admin.name},</p>
+            <p>The study plan titled <strong>${studyPlan.title}</strong> has been approved by the head and now requires your approval.</p>
+            <p>Please review and approve the study plan at your earliest convenience.</p>
+            <p>Thank you.</p>
+            <p>Best regards,</p>
+            <p>Your University Administration</p>
+          `;
+          await sendEmail(admin.email, 'Study Plan Approval Needed', emailContent);
+        }
+      }
+    }
+
+    // Notify the student about the approval status
+    const student = await db.collection('users').findOne({ _id: studyPlan.sid });
+    if (student) {
+      const status = req.body.approval === "approved" ? 'approved' : 'disapproved';
+      const emailContent = `
+        <p>Dear ${student.name},</p>
+        <p>Your study plan titled <strong>${studyPlan.title}</strong> has been <strong>${status}</strong>.</p>
+        <p>Reason: ${req.body.reason || 'No reason provided'}.</p>
+        <p>Thank you.</p>
+        <p>Best regards,</p>
+        <p>Your University Administration</p>
+      `;
+      await sendEmail(student.email, 'Study Plan Approval Status', emailContent);
+    }
+
+    res.json({ message: 'Approval status updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 module.exports = router;
