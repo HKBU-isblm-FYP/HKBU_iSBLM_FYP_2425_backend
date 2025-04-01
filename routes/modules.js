@@ -12,7 +12,7 @@ router.get('/all/:id', async function (req, res, next) {
     try {
         modules = await db.collection('modules')
             .find({ student: new ObjectId(studentid) })
-            .project({ _id: 1, moduleName: 1, student: 1, sem: 1 })
+            .project({ _id: 1, moduleName: 1, student: 1, sem: 1, courseCode: 1})
             .toArray();
         modules.sort((a, b) => a.sem.localeCompare(b.sem));
         return res.json(modules);
@@ -31,13 +31,6 @@ router.get('/:id', async function (req, res, next) {
     try {
         module = await db.collection('modules')
             .findOne({ _id: new ObjectId(moduleid) });
-        for (let i = 0; i < module.presentations.components.length; i++) {
-            const c = module.presentations.components[i];
-            const comp = await db.collection('components').findOne({ _id: new ObjectId(c.id) });
-            c.title = comp.title;
-            console.log(c.title)
-        }
-
         return res.json(module);
     }
     catch (err) {
