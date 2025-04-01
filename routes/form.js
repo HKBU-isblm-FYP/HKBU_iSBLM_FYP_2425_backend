@@ -45,7 +45,11 @@ router.post('/declaration/submit/:id', async (req, res, next) => {
             'Form Approval Needed',
             emailContent
         );
-
+ 
+         await db.collection('studyPlans').updateOne(
+            { _id: new ObjectId(req.body.studyPlan) },
+            { $set: { created: new Date() } }
+        );
 
         res.json(result);
     }
@@ -337,7 +341,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
             // Update studyPlan blueprint to false
             await db.collection('studyPlans').updateOne(
                 { _id: new ObjectId(studyPlanId) },
-                { $set: { approved: true, current: true } }
+                { $set: { approved: true, current: true, approvedAt: new Date() }, $unset: { isDeclared: "" } }
             );
 
             await db.collection('users').updateOne(
