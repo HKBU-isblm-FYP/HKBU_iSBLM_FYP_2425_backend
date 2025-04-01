@@ -4,27 +4,25 @@ const { connectToDB, ObjectId } = require('../utils/db');
 const { sendEmail } = require('../utils/emailServices.js');
 const { createBlob } = require('../utils/azure-blob');
 
-router.post('/declaration/submit', async (req, res, next) => {
+router.post('/declaration/submit/:id', async (req, res, next) => {
     const db = await connectToDB();
     try {
-        if (req.body.studentID && ObjectId.isValid(req.body.studentID)) {
-            req.body.studentID = new ObjectId(req.body.studentID);
-        } else {
-            return res.status(400).json({ error: 'Invalid studentID' });
-        }
+
         req.body.type = 'Declaration Form';
+
         req.body.approval = { supervisor: false, head: false, director: false, adm1: false, adm2: false };
         req.body.status = 'pending';
         req.body.submittedAt = new Date();
         proposal = await createBlob(req.files.proposal.name, req.files.proposal.data);
         req.body.proposal = proposal;
-
+        req.body.studentOID = new ObjectId(req.params.id);
         req.body.studyPlan = new ObjectId(req.body.studyPlan);
 
         const result = await db.collection('form').insertOne(req.body);
-
+      
         // Find the student's supervisor
-        const student = await db.collection('users').findOne({ _id: new ObjectId(req.body.studentID) });
+        const student = await db.collection('users').findOne({ _id: new ObjectId(req.params.id) });
+
         const supervisor = await db.collection('users').findOne({ _id: new ObjectId(student.supervisor) });
 
         const emailContent = `
@@ -47,6 +45,11 @@ router.post('/declaration/submit', async (req, res, next) => {
             'Form Approval Needed',
             emailContent
         );
+ 
+         await db.collection('studyPlans').updateOne(
+            { _id: new ObjectId(req.body.studyPlan) },
+            { $set: { created: new Date() } }
+        );
 
         res.json(result);
     }
@@ -60,9 +63,10 @@ router.put('/all', async (req, res, next) => {
     try {
         req.body.ids = req.body.ids.map(id => new ObjectId(id));
         const role = req.body.role;
+        console.log(req.body.ids);
         if (role == 'supervisor') {
             const forms = await db.collection('form').find({
-                studentID: { $in: req.body.ids },
+                studentOID: { $in: req.body.ids },
             }).toArray();
             res.json(forms);
         } else if (role == 'head') {
@@ -72,10 +76,17 @@ router.put('/all', async (req, res, next) => {
             }).toArray();
             console.log(forms);
             res.json(forms);
-        } else if (role == 'admin') {
+        } else if (role == 'director') {
             const forms = await db.collection('form').find({
                 'approval.supervisor.approval': 'approved',
                 'approval.head.approval': 'approved'
+            }).toArray();
+            res.json(forms);
+        }else if (role == 'admin') {
+            const forms = await db.collection('form').find({
+                'approval.supervisor.approval': 'approved',
+                'approval.head.approval': 'approved',
+                'approval.director.approval': 'approved'
             }).toArray();
             res.json(forms);
         }
@@ -328,7 +339,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
 
             // Update studyPlan blueprint
             const studyPlanId = form.studyPlan;
-            const studentId = form.studentID;
+            const studentId = form.studentOID;
             
             // Update student's studyPlan blueprint to true
             await db.collection('studyPlans').updateMany(
@@ -338,7 +349,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
             // Update studyPlan blueprint to false
             await db.collection('studyPlans').updateOne(
                 { _id: new ObjectId(studyPlanId) },
-                { $set: { approved: true, current: true } }
+                { $set: { approved: true, current: true, approvedAt: new Date() }, $unset: { isDeclared: "" } }
             );
 
             await db.collection('users').updateOne(

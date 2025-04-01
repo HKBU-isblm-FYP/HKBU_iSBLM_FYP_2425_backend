@@ -47,11 +47,13 @@ router.post('/create', async function (req, res, next) {
             const yearPlan = template.yearPlan.toString();
             const modules = [];
 
-            for (const [key, moduleName] of Object.entries(details)) {
-                if (moduleName) {
+            for (const [key, moduleDetails] of Object.entries(details)) {
+                if (moduleDetails) {
                     const sem = key.replace('sem', '');
+                    const [moduleName, courseCode] = moduleDetails.split(' (');
                     modules.push({
-                        moduleName: moduleName,
+                        moduleName: moduleName.trim(),
+                        courseCode: courseCode ? courseCode.replace(')', '').trim() : '',
                         sem: sem,
                         yearPlan: yearPlan,
                         title: template.title // Add title to each module
@@ -492,16 +494,18 @@ router.put('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
         res.status(500).json({ message: 'Error updating resource', error });
     }
 });
-router.put('/moduleName/:id', async (req, res) => {
+
+router.put('/moduleDetails/:id', async (req, res) => {
     const db = await connectToDB();
     try {
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id) },
-            { $set: { moduleName: req.body.moduleName } }
+            { $set: { moduleName: req.body.moduleName, courseCode: req.body.courseCode } } // Update both fields
         );
-        res.status(200).json({ message: 'Module title updated successfully' });
+        res.status(200).json({ message: 'Module details updated successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Error updating module title', error });
+        res.status(500).json({ message: 'Error updating module details', error });
     }
 });
+
 module.exports = router;
