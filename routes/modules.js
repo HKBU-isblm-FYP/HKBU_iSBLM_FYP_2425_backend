@@ -12,9 +12,10 @@ router.get('/all/:id', async function (req, res, next) {
     try {
         modules = await db.collection('modules')
             .find({ student: new ObjectId(studentid) })
-            .project({ _id: 1, moduleName: 1, student: 1, sem: 1 })
+            // .project({ _id: 1, moduleName: 1, student: 1, sem: 1, courseCode: 1 })
             .toArray();
         modules.sort((a, b) => a.sem.localeCompare(b.sem));
+        console.log(modules);
         return res.json(modules);
     }
     catch (err) {
