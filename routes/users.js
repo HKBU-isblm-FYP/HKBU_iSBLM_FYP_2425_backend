@@ -213,4 +213,23 @@ router.put('/:supervisor/assign/:student', async (req, res) => {
   }
 });
 
+// Create User
+router.post('/create', async (req, res) => {
+  const db = await connectToDB();
+  try {
+    const newUser = {
+      ...req.body, // Accept user data from the request body
+      _id: new ObjectId(), // Generate a new ObjectId for the user
+      createdAt: new Date(),
+      modifiedAt: new Date()
+    };
+
+    const result = await db.collection('users').insertOne(newUser);
+    res.status(201).json({ message: 'User created successfully', userId: result.insertedId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
+});
+
 module.exports = router;
