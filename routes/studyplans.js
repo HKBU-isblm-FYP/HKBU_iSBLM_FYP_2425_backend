@@ -168,7 +168,8 @@ router.get('/:id/:pid', async function (req, res, next) {
       reformattedStudyPlan.studyPlan[`year${item.year}`][`semester${item.semester}`].push({
         code: item.courseCode || item.code,
         name: item.title,
-        units: item.units
+        units: item.units,
+        id: item.chapterId
       });
 
       // Update the total units for the year
