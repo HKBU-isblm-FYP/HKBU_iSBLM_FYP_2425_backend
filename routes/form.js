@@ -41,7 +41,7 @@ router.post('/declaration/submit/:id', async (req, res, next) => {
         `;
 
         await sendEmail(
-            "21222843@life.hkbu.edu.hk",
+            supervisor.email,
             'Form Approval Needed',
             emailContent
         );
@@ -120,7 +120,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
         // Find the form with the given formid
         const form = await db.collection('form').findOne({ _id: new ObjectId(formid) });
 
-        const student = await db.collection('users').findOne({ _id: new ObjectId(form.studentID) });
+        const student = await db.collection('users').findOne({ _id: new ObjectId(form.studentOID) });
 
         // Check if the supervisor of the user matches the uid
         if (student.supervisor.toString() == uid) {
@@ -139,7 +139,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
             // Notify the head
             const head = await db.collection('users').findOne({ isHead: true });
             await sendEmail(
-                "21222843@life.hkbu.edu.hk",
+                head.email,
                 'Form Approval Needed',
                 `
                 <p>Dear ${head.name},</p>
@@ -274,10 +274,10 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
         if (req.body.approval === 'approved') {
             const approver = await db.collection('users').findOne({ _id: new ObjectId(uid) });
             const approverName = approver.name || 'Unknown';
-            const approverRole = approver.role || 'Unknown role';
+            const approverRole = approver.userRole || 'Unknown role';
 
             await sendEmail(
-                "21222843@life.hkbu.edu.hk",
+                student.email,
                 'Form Status Update',
                 `
                 <p>Dear Student,</p>
@@ -296,10 +296,10 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
         } else {
             const approver = await db.collection('users').findOne({ _id: new ObjectId(uid) });
             const approverName = approver.name || 'Unknown';
-            const approverRole = approver.role || 'Unknown role';
+            const approverRole = approver.userRole || 'Unknown role';
 
             await sendEmail(
-                "21222843@life.hkbu.edu.hk",
+                student.email,
                 'Form Status Update',
                 `
                 <p>Dear Student,</p>
@@ -320,7 +320,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
 
         if (form.status === 'approved') {
             await sendEmail(
-                "21222843@life.hkbu.edu.hk",
+                student.email,
                 'Form Status Update',
                 `
                 <p>Dear Student,</p>
