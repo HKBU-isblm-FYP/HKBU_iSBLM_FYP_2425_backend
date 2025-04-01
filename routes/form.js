@@ -251,6 +251,25 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                             { $set: updateFields }
                         );
                         form.status = 'approved';
+                        // Update studyPlan blueprint
+                        const studyPlanId = form.studyPlan;
+                        const studentId = form.studentOID;
+                        console.log("studyplanID"+studyPlanId);
+                        // Update student's studyPlan blueprint to true
+                        await db.collection('studyPlans').updateMany(
+                            { sid: new ObjectId(studentId) },
+                            { $set: { current: false } }
+                        );
+                        // Update studyPlan blueprint to false
+                        await db.collection('studyPlans').updateOne(
+                            { _id: new ObjectId(studyPlanId) },
+                            { $set: { approved: true, current: true, approvedAt: new Date() }, $unset: { isDeclared: "" } }
+                        );
+            
+                        await db.collection('users').updateOne(
+                            { _id: new ObjectId(studentId) },
+                            { $set: { major: form.proposedMajor } }
+                        );
                     }
 
 
@@ -318,7 +337,9 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
             );
         }
 
-        if (form.status === 'approved') {
+
+        if (form.status == 'approved') {
+
             await sendEmail(
                 student.email,
                 'Form Status Update',
@@ -337,25 +358,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                 `
             );
 
-            // Update studyPlan blueprint
-            const studyPlanId = form.studyPlan;
-            const studentId = form.studentOID;
-            
-            // Update student's studyPlan blueprint to true
-            await db.collection('studyPlans').updateMany(
-                { sid: new ObjectId(studentId) },
-                { $set: { current: false } }
-            );
-            // Update studyPlan blueprint to false
-            await db.collection('studyPlans').updateOne(
-                { _id: new ObjectId(studyPlanId) },
-                { $set: { approved: true, current: true, approvedAt: new Date() }, $unset: { isDeclared: "" } }
-            );
 
-            await db.collection('users').updateOne(
-                { _id: new ObjectId(studentId) },
-                { $set: { major: form.proposedMajor } }
-            );
 
 
         }
