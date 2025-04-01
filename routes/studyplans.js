@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
 const { sendEmail } = require('../utils/emailServices.js');
+const { initialize } = require('passport');
 // router.get('/:id', async function (req, res, next) {
 //     const studentId = req.params.id;
 //     let studyPlan = [];
@@ -252,12 +253,12 @@ router.post('/create', async (req, res) => {
     const result = await db.collection('studyPlans').insertOne(newStudyPlan);
     const id = result.insertedId;
 
-    // Update the user's studyPlan field with the new study plan ID
+    // Update the user's initiated studyPlan field 
     const userId = newStudyPlan.sid;
-    // await db.collection('users').updateOne(
-    //   { _id: userId },
-    //   { $set: { studyPlan: id } }
-    // );
+    await db.collection('users').updateOne(
+      { _id: userId },
+      { $set: { initiated: true } }
+    );
 
     res.json(id);
   } catch (error) {
@@ -289,6 +290,13 @@ router.post('/update/:id', async (req, res) => {
     if (result.matchedCount === 0) {
       return res.status(404).json({ message: 'Study plan not found' });
     }
+
+    // Update the user's initiated studyPlan field 
+    const userId = newStudyPlan.sid;
+    await db.collection('users').updateOne(
+      { _id: userId },
+      { $set: { initiated: true } }
+    );
 
     res.json({ message: 'Study plan updated successfully' });
   } catch (err) {
