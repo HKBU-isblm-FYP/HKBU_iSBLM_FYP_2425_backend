@@ -356,15 +356,6 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                 `
             );
         }
-
-
-        if (form.status == 'approved') {
-
-
-
-
-
-        }
         res.json(updatedForm);
     }
     catch (err) {
