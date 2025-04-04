@@ -254,18 +254,34 @@ router.patch('/updateAnnotation/:id', async (req, res) => {
 });
 
 router.post('/default', async (req, res) => {
+
+  const db = await connectToDB();
+
   try {
     const defaultLessons = req.body; // Parse the studyPlan from the request body
 
     console.log(defaultLessons);
-    const courseCodes = Object.values(defaultLessons).flat().map(course => course.courseCode);
+    // const courseCodes = Object.values(defaultLessons).flat().map(course => course.courseCode);
+
+    // Extract course codes and filter out invalid ones
+    const courseCodes = Object.values(defaultLessons)
+      .flat()
+      .map(course => course.courseCode)
+      .flatMap(code => code.includes('&') ? code.split('&').map(c => c.trim()) : code) // Split codes with '&'
+      .filter(code => code && !['FREE', 'EXCHANGE', 'GCAP'].includes(code) && !code.includes('&'));
+
     console.log(courseCodes);
 
-    const lessons = await db.collection('lessons').find({ courseCode: { $in: courseCodes } }).select('_id');
+    // const lessons = await db.collection('lessons').find({ courseCode: { $in: courseCodes } }, { projecttion: { _id: 1 } }).select('_id');
+    const lessons = await db
+      .collection('lessons')
+      .find({ courseCode: { $in: courseCodes } }, { projection: { _id: 1 } }) // Use projection to select only '_id'
+      .toArray();
+
     console.log(lessons);
     res.json(lessons);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch lessons' });
+    res.status(500).json({ error: `'Failed to fetch lessons' ${error}` });
   }
 });
 
