@@ -277,7 +277,7 @@ router.post('/default', async (req, res) => {
     // const lessons = await db.collection('lessons').find({ courseCode: { $in: courseCodes } }, { projecttion: { _id: 1 } }).select('_id');
     const lessons = await db
       .collection('lessons')
-      .find({ courseCode: { $in: courseCodes }, years: admissionYear }, { projection: { _id: 1 } }) // Use projection to select only '_id'
+      .find({ courseCode: { $in: courseCodes }, years: admissionYear }, { projection: { _id: 1, courseCode: 1, title: 1, units: 1 } }) // Use projection to select only '_id'
       .toArray();
 
     console.log(lessons);
