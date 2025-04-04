@@ -16,7 +16,7 @@ router.get('/progress/:id', async function (req, res, next) {
             "messages": [
                 {
                     "role": "user",
-                    "content": `Here is the student's module data:\n\n${JSON.stringify(module, null, 2)}\n\nPlease evaluate the student's progress based on the provided data and give an summary in of their performance in a paragraph. Don't have to be to formal and don't show the exact scoring. For you information, the meetings's ratings is from the academic supervisor. The meeting record is given by either the student or the academic supervisor. Overall give them % of the progress.`
+                    "content": `The following is the student's module data:\n\n${JSON.stringify(module, null, 2)}\n\nBased on this data, please evaluate the student's progress. Provide a evaluation of their performance, highlighting their strengths and areas for improvement. Include actionable feedback to help the student improve. Avoid mentioning exact scores but provide an overall percentage of progress. Note that meeting ratings are provided by the academic supervisor, and meeting records are contributed by either the student or the supervisor. If they has any submissions with gradings please also mention their performance in those submissions.`
                 }
             ],
             "temperature": 0.3
