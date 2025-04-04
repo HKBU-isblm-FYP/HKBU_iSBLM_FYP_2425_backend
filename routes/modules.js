@@ -3,6 +3,7 @@ var router = express.Router();
 const { connectToDB, ObjectId } = require('../utils/db');
 const { createBlob, deleteBlob } = require('../utils/azure-blob');
 const multer = require('multer');
+const { meet } = require('googleapis/build/src/apis/meet');
 const upload = multer({ dest: 'uploads/' });
 
 router.get('/all/:id', async function (req, res, next) {
@@ -121,7 +122,15 @@ router.put('/meetings/add/:id', async function (req, res, next) {
 
 router.put('/meetings/update/:id', async function (req, res, next) {
     const moduleid = req.params.id;
-    const updatedMeetings = req.body.meetings;
+    let updatedMeetings = req.body.meetings;
+
+    // Convert the date field to a Date object for each meeting
+    updatedMeetings = updatedMeetings.map(meeting => {
+        meeting.date = new Date(meeting.date);
+        meeting.meetingID = new ObjectId(meeting.meetingID); 
+        return meeting;
+    });
+
     const db = await connectToDB();
     try {
         const result = await db.collection('modules')
@@ -271,6 +280,39 @@ router.put('/assignment/:id/:topicId/:assignmentId/submit', async (req, res) => 
     }
 });
 
+router.post('/assignment/:id/:topicId/:assignmentId/grade', async (req, res) => {
+    const db = await connectToDB();
+    const { id, topicId, assignmentId } = req.params;
+    const grade = req.body.grade;
+
+    try {
+        const result = await db.collection('modules').updateOne(
+            {
+                _id: new ObjectId(id),
+                'topics.id': new ObjectId(topicId),
+                'topics.assignments.id': new ObjectId(assignmentId),
+            },
+            {
+                $set: {
+                    'topics.$.assignments.$[assignment].grade': grade,
+                },
+            },
+            {
+                arrayFilters: [{ 'assignment.id': new ObjectId(assignmentId) }],
+            }
+        );
+
+        if (result.modifiedCount > 0) {
+            res.status(200).json({ message: 'Grade updated successfully', grade });
+        } else {
+            res.status(404).json({ message: 'Assignment not found' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error updating grade', error });
+    }
+});
+
 router.post('/assignment/:id/:topicId/:assignmentId/comment/:userId', async (req, res) => {
     const db = await connectToDB();
     const { id, topicId, assignmentId, userId } = req.params;
@@ -414,17 +456,53 @@ router.put('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
     const db = await connectToDB();
     try {
         const { title, description, type, questions } = req.body;
-        await db.collection('modules').updateOne(
-            { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId), 'topics.activities.id': new ObjectId(req.params.activityId) },
-            { $set: { 'topics.$.activities.$[activity].title': title, 'topics.$.activities.$[activity].description': description, 'topics.$.activities.$[activity].type': type, 'topics.$.activities.$[activity].questions': questions } },
-            { arrayFilters: [{ 'activity.id': new ObjectId(req.params.activityId) }] }
+        const { id, topicId, activityId } = req.params;
+
+        // Fetch the existing activity
+        const module = await db.collection('modules').findOne(
+            { _id: new ObjectId(id), 'topics.id': new ObjectId(topicId) },
+            { projection: { 'topics.$': 1 } }
         );
-        res.status(200).json({ message: 'Activity updated successfully' });
+
+        const activity = module.topics[0].activities.find(act => act.id.equals(new ObjectId(activityId)));
+
+        if (!activity) {
+            return res.status(404).json({ message: 'Activity not found' });
+        }
+
+        // Check if questions have changed
+        let submissionCleared = false;
+        if (questions && JSON.stringify(questions) !== JSON.stringify(activity.questions)) {
+            submissionCleared = true;
+        }
+
+        // Prepare update fields
+        const updateFields = {
+            'topics.$.activities.$[activity].title': title,
+            'topics.$.activities.$[activity].description': description,
+            'topics.$.activities.$[activity].type': type,
+        };
+
+        if (questions) {
+            updateFields['topics.$.activities.$[activity].questions'] = questions;
+        }
+
+        if (submissionCleared) {
+            updateFields['topics.$.activities.$[activity].submission'] = null; // Clear submission
+        }
+
+        // Update the activity
+        await db.collection('modules').updateOne(
+            { _id: new ObjectId(id), 'topics.id': new ObjectId(topicId), 'topics.activities.id': new ObjectId(activityId) },
+            { $set: updateFields },
+            { arrayFilters: [{ 'activity.id': new ObjectId(activityId) }] }
+        );
+
+        res.status(200).json({ message: 'Activity updated successfully', submissionCleared });
     } catch (error) {
         res.status(500).json({ message: 'Error updating activity', error });
     }
 });
-
 
 router.delete('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
     const db = await connectToDB();
@@ -436,6 +514,52 @@ router.delete('/:id/topics/:topicId/activity/:activityId', async (req, res) => {
         res.status(200).json({ message: 'Activity deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting activity', error });
+    }
+});
+
+router.post('/:id/topics/:topicId/activity/:activityId/submit', async (req, res) => {
+    const db = await connectToDB();
+    const { id, topicId, activityId } = req.params;
+    const { answers } = req.body;
+
+    try {
+        // Fetch the activity
+        const module = await db.collection('modules').findOne(
+            { _id: new ObjectId(id), 'topics.id': new ObjectId(topicId) },
+            { projection: { 'topics.$': 1 } }
+        );
+
+        const activity = module.topics[0].activities.find(act => act.id.equals(new ObjectId(activityId)));
+
+        if (!activity || activity.type !== 'quiz') {
+            return res.status(404).json({ message: 'Quiz not found' });
+        }
+
+        // Calculate the score
+        let score = 0;
+        activity.questions.forEach((question, index) => {
+            if (answers[index] === question.answer) {
+                score++;
+            }
+        });
+
+        // Save the submission and score
+        const submission = {
+            submittedAt: new Date(),
+            answers,
+            score,
+        };
+
+        await db.collection('modules').updateOne(
+            { _id: new ObjectId(id), 'topics.id': new ObjectId(topicId), 'topics.activities.id': new ObjectId(activityId) },
+            { $set: { 'topics.$.activities.$[activity].submission': submission } },
+            { arrayFilters: [{ 'activity.id': new ObjectId(activityId) }] }
+        );
+
+        res.status(200).json({ message: 'Quiz submitted successfully', score });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error submitting quiz', error });
     }
 });
 
@@ -536,6 +660,9 @@ router.delete('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) 
         res.status(500).json({ message: 'Error deleting assignment', error });
     }
 });
+
+
+
 router.get('/:id/topics/:topicId/resource/:resourceId', async (req, res) => {
     const db = await connectToDB();
     try {
