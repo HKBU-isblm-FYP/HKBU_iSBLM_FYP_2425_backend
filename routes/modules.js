@@ -232,7 +232,6 @@ router.put('/assignment/:id/:topicId/:assignmentId/submit', async (req, res) => 
                 await deleteBlob(file.file.blobName);
             }
         }
-
         // Handle file uploads
         if (req.files && req.files.files) {
             const files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
@@ -244,7 +243,6 @@ router.put('/assignment/:id/:topicId/:assignmentId/submit', async (req, res) => 
                 });
             }
         }
-
         // Update the assignment with the new submission
         const result = await db.collection('modules').updateOne(
             {
@@ -273,7 +271,74 @@ router.put('/assignment/:id/:topicId/:assignmentId/submit', async (req, res) => 
     }
 });
 
-
+router.post('/assignment/:id/:topicId/:assignmentId/comment/:userId', async (req, res) => {
+    const db = await connectToDB();
+    const { id, topicId, assignmentId, userId } = req.params;
+    const comment = {
+        text: req.body.comment,
+        userId: new ObjectId(userId),
+        timestamp: new Date()
+    };
+    try {
+        const result = await db.collection('modules').updateOne(
+            {
+                _id: new ObjectId(id),
+                'topics.id': new ObjectId(topicId),
+                'topics.assignments.id': new ObjectId(assignmentId),
+            },
+            {
+                $push: {
+                    'topics.$.assignments.$[assignment].comments': comment,
+                },
+            },
+            {
+                arrayFilters: [{ 'assignment.id': new ObjectId(assignmentId) }],
+            }
+        );
+        if (result.modifiedCount > 0) {
+            res.status(200).json({ message: 'Comment added successfully', comment });
+        } else {
+            res.status(404).json({ message: 'Assignment not found' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error adding comment', error });
+    }
+});
+router.put('/assignment/:id/:topicId/:assignmentId/comment/:userId', async (req, res) => {
+    const db = await connectToDB();
+    const { id, topicId, assignmentId, userId } = req.params;
+    const comment = {
+        text: req.body.comment,
+        userId: new ObjectId(userId),
+        timestamp: new Date()
+    };
+    try {
+        const result = await db.collection('modules').updateOne(
+            {
+                _id: new ObjectId(id),
+                'topics.id': new ObjectId(topicId),
+                'topics.assignments.id': new ObjectId(assignmentId),
+            },
+            {
+                $set: {
+                    'topics.$.assignments.$[assignment].comments.$[comment]': comment,
+                },
+            },
+            {
+                arrayFilters: [{ 'assignment.id': new ObjectId(assignmentId) }, { 'comment.userId': new ObjectId(userId) }],
+            }
+        );
+        if (result.modifiedCount > 0) {
+            res.status(200).json({ message: 'Comment updated successfully', comment });
+        } else {
+            res.status(404).json({ message: 'Assignment not found' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error updating comment', error });
+    }
+})
 router.put('/:id/topics', async (req, res) => {
     const db = await connectToDB();
     try {
@@ -403,6 +468,7 @@ router.post('/:id/topics/:topicId/assignment', async (req, res) => {
                 });
             }
         }
+        req.body.Due = new Date(req.body.Due)
         await db.collection('modules').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
             { $push: { 'topics.$.assignments': assignment } }
@@ -416,7 +482,7 @@ router.post('/:id/topics/:topicId/assignment', async (req, res) => {
 router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => {
     const db = await connectToDB();
     try {
-        const { title, description, Due } = req.body;
+        const { title, description } = req.body;
         let files = [];
 
         if (req.body.fetchedFiles) {
@@ -434,7 +500,7 @@ router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
                 });
             }
         }
-
+        Due = new Date(req.body.Due)
         await db.collection('modules').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId), 'topics.assignments.id': new ObjectId(req.params.assignmentId) },
             { $set: { 'topics.$.assignments.$[assignment].title': title, 'topics.$.assignments.$[assignment].description': description, 'topics.$.assignments.$[assignment].Due': Due, 'topics.$.assignments.$[assignment].files': files } },

@@ -59,6 +59,17 @@ router.get('/all', async (req, res) => {
   }
 });
 
+router.get("/allUsers/", async (req, res) => {
+  const db = await connectToDB();
+  try {
+    const users = await db.collection('users').find({}).toArray();
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
+});
+
 router.get('/students', async (req, res) => {
   const db = await connectToDB();
   try {
