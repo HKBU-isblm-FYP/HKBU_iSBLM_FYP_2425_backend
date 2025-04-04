@@ -17,11 +17,13 @@ router.get('/all', async (req, res) => {
 
     let MECE = req.headers['x-mece'];
     MECE = MECE ? MECE.split(',').map(id => new ObjectId(id)) : []; //Need to be array to pass to $nin
-    // console.log(MECE);
+    console.log('MECE', MECE);
 
     const perPage = parseInt(req.query.perPage || '6');
     const page = parseInt(req.query.page || 1);
     const size = parseInt(req.query.perPage || 6);
+
+    const admissionYear = req.query.admissionYear || ''; // Get the admission year from the request parameters
 
     let query = {};
     if (search) {
@@ -29,6 +31,10 @@ router.get('/all', async (req, res) => {
     }
     if (years) {
       query.years = years; // Filter by years
+    }
+
+    if (admissionYear) {
+      query.years = admissionYear; // Filter by admission year
     }
 
     let pipeline = [
