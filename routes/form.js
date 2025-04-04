@@ -260,6 +260,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                             { sid: new ObjectId(studentId) },
                             { $set: { current: false } }
                         );
+
                         // Update studyPlan blueprint to false
                         await db.collection('studyPlans').updateOne(
                             { _id: new ObjectId(studyPlanId) },
@@ -270,8 +271,27 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                             { _id: new ObjectId(studentId) },
                             { $set: { major: form.proposedMajor } }
                         );
-                    }
+                    
+                        await sendEmail(
+                            student.email,
+                            'Form Status Update',
+                            `
+                            <p>Dear Student,</p>
+                            <p>Your form has been <strong>approved</strong> by all approvers.</p>
+                            <p>Form Details:</p>
+                            <ul>
+                                <li>Form ID: ${form._id}</li>
+                                <li>Form Type: ${form.type}</li>
+                                <li>Status: ${form.status}</li>
+                            </ul>
+                            <p>Thank you.</p>
+                            <p>Best regards,</p>
+                            <p>Your University Administration</p>
+                            `
+                        );
 
+                    
+                    }
 
                 } else {
                     const updateFields = { "approval.adm1": admin };
@@ -340,23 +360,6 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
 
         if (form.status == 'approved') {
 
-            await sendEmail(
-                student.email,
-                'Form Status Update',
-                `
-                <p>Dear Student,</p>
-                <p>Your form has been <strong>approved</strong> by all approvers.</p>
-                <p>Form Details:</p>
-                <ul>
-                    <li>Form ID: ${form._id}</li>
-                    <li>Form Type: ${form.type}</li>
-                    <li>Status: ${form.status}</li>
-                </ul>
-                <p>Thank you.</p>
-                <p>Best regards,</p>
-                <p>Your University Administration</p>
-                `
-            );
 
 
 
