@@ -253,4 +253,20 @@ router.patch('/updateAnnotation/:id', async (req, res) => {
   }
 });
 
+router.post('/default', async (req, res) => {
+  try {
+    const defaultLessons = req.body; // Parse the studyPlan from the request body
+
+    console.log(defaultLessons);
+    const courseCodes = Object.values(defaultLessons).flat().map(course => course.courseCode);
+    console.log(courseCodes);
+
+    const lessons = await db.collection('lessons').find({ courseCode: { $in: courseCodes } }).select('_id');
+    console.log(lessons);
+    res.json(lessons);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch lessons' });
+  }
+});
+
 module.exports = router;
