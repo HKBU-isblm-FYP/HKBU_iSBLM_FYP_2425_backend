@@ -211,6 +211,7 @@ router.post('/:id/topics/:topicId/assignment', async (req, res) => {
                 });
             }
         }
+        req.body.Due = new Date(req.body.Due)
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId) },
             { $push: { 'topics.$.assignments': assignment } }
@@ -306,7 +307,7 @@ router.get('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
 router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => {
     const db = await connectToDB();
     try {
-        const { title, description, Due } = req.body;
+        const { title, description } = req.body;
         let files = [];
 
         // Add fetched files to the files array
@@ -326,7 +327,7 @@ router.put('/:id/topics/:topicId/assignment/:assignmentId', async (req, res) => 
                 });
             }
         }
-
+        Due = new Date(req.body.Due)
         // Update the assignment
         await db.collection('moduleTemp').updateOne(
             { _id: new ObjectId(req.params.id), 'topics.id': new ObjectId(req.params.topicId), 'topics.assignments.id': new ObjectId(req.params.assignmentId) },
