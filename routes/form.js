@@ -102,7 +102,7 @@ router.get('/:id', async (req, res) => {
     const db = await connectToDB();
     try {
         form = await db.collection('form')
-            .findOne({ _id: new ObjectId(formid), status: 'pending' });
+            .findOne({ _id: new ObjectId(formid) });
     }
     catch (err) {
         console.log(err);
