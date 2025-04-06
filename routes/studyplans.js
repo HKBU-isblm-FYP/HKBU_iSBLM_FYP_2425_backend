@@ -33,6 +33,19 @@ router.get('/pending', async function (req, res, next) {
   }
 });
 
+router.get('/:sid/current', async function (req, res, next) {
+  const db = await connectToDB();
+  const sid = req.params.sid;
+  try {
+    const current = await db.collection('studyPlans').find({ sid: new ObjectId(sid), approved: true, current: true }).toArray();
+    console.log(current)
+    return res.json(current);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ error: err.toString() });
+  }
+}); 
+
 // Route to get all projects with pagination
 router.get('/all', async (req, res) => {
   const db = await connectToDB();
@@ -471,5 +484,6 @@ router.put('/:studyPlanID/approval/:uid', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 module.exports = router;

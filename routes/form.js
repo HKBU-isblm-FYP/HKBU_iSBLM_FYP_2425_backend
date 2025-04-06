@@ -264,7 +264,7 @@ router.put('/:formid/approval/:uid', async (req, res, next) => {
                         // Update studyPlan blueprint to false
                         await db.collection('studyPlans').updateOne(
                             { _id: new ObjectId(studyPlanId) },
-                            { $set: { approved: true, current: true, approvedAt: new Date() }, $unset: { isDeclared: "" } }
+                            { $set: { approved: true, major: form.proposedMajor , current: true, approvedAt: new Date() }, $unset: { isDeclared: "" } }
                         );
             
                         await db.collection('users').updateOne(
