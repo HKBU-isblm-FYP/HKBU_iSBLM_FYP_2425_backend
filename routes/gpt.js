@@ -28,7 +28,7 @@ router.get('/progress/:id', async function (req, res, next) {
             promptMessage,
             {
                 headers: {
-                    'api-key': 'b252590f-23fb-4287-9b4c-537d0c06cb8d',
+                    'api-key': '6d58c636-a450-44d2-ac1d-e0297bbb0205',
                     'Content-Type': 'application/json',
                     'Accept': 'application/json' // Ensure the Accept header is set correctly
                 }
