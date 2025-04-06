@@ -11,7 +11,7 @@ router.get('/:selectedYear', async (req, res) => {
   try {
     const search = req.query.search || '';
 
-    const countCourses = await db.collection('lessons').countDocuments();
+    const countCourses = await db.collection('courses').countDocuments();
     const countProjects = await db.collection('projects').countDocuments();
     const countUsers = await db.collection('users').countDocuments();
 
@@ -25,7 +25,7 @@ router.get('/:selectedYear', async (req, res) => {
 
     console.log(countStudentsByYear);
 
-    const countCourseByYearArray = await db.collection('lessons').aggregate([
+    const countCourseByYearArray = await db.collection('courses').aggregate([
       { $match: { years: req.params.selectedYear } }, // Filter for students
       { $group: { _id: "$years", count: { $sum: 1 } } } // Group by major and count
     ]).toArray();
@@ -83,7 +83,7 @@ router.get('/student/:sid', async (req, res) => {
     delete student.password;
     delete supervisor.password;
 
-    const countCourses = await db.collection('lessons').countDocuments();
+    const countCourses = await db.collection('courses').countDocuments();
 
     res.json({ student: student, supervisor: supervisor, totalCourses: 89 });
 
