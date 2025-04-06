@@ -305,7 +305,7 @@ router.post('/update/:id', async (req, res) => {
     }
 
     // Update the user's initiated studyPlan field 
-    const userId = newStudyPlan.sid;
+    const userId = updatedStudyPlan.sid;
     await db.collection('users').updateOne(
       { _id: userId },
       { $set: { initiated: true } }
