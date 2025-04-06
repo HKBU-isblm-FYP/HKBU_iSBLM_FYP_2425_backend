@@ -21,17 +21,43 @@ const { initialize } = require('passport');
 //     res.json(studyPlan);
 // });
 
-router.get('/pending', async function (req, res, next) {
+router.put('/pending', async function (req, res, next) {
   const db = await connectToDB();
   try {
-    const blueprints = await db.collection('studyPlans').find({ approved: false, "approval": { $exists: true } }).toArray();
-    console.log(blueprints);
-    return res.json(blueprints);
-  } catch (err) {
-    console.log(err);
-    return res.status(500).json({ error: err.toString() });
-  }
-});
+    req.body.ids = req.body.ids.map(id => new ObjectId(id));
+    const role = req.body.role;
+    studyplans = []
+    if (role == 'supervisor') {
+      studyplans = await db.collection('studyPlans').find({ 
+        sid: { $in: req.body.ids }, 
+        approved: false, approval: { $exists: true } }).toArray();
+    } else if (role == 'head') {
+      studyplans = await db.collection('studyPlans').find({
+        sid: { $in: req.body.ids },
+        approved: true,
+        approval: { $exists: true },
+        'approval.supervisor.approval': { $exists: true },
+        'approval.supervisor.approval': "approved"
+      }).toArray();
+    }else if (role == 'admin') {
+      const studyplans = await db.collection('studyPlans').find({
+        sid: { $in: req.body.ids },
+        approved: true,
+        approval: { $exists: true },
+        'approval.supervisor.approval': { $exists: true },
+        'approval.supervisor.approval': "approved",
+        'approval.head.approval': { $exists: true },
+        'approval.head.approval': "approved"
+      }).toArray();
+    }
+      console.log(studyplans);
+      return res.json(studyplans);
+    } catch (err) {
+      console.log(err);
+      return res.status(500).json({ error: err.toString() });
+    }
+  });
+
 
 router.get('/:sid/current', async function (req, res, next) {
   const db = await connectToDB();
@@ -44,7 +70,7 @@ router.get('/:sid/current', async function (req, res, next) {
     console.log(err);
     return res.status(500).json({ error: err.toString() });
   }
-}); 
+});
 
 // Route to get all projects with pagination
 router.get('/all', async (req, res) => {
