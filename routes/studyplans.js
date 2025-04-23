@@ -37,14 +37,14 @@ router.put('/pending', async function (req, res, next) {
     } else if (role == 'head') {
       studyplans = await db.collection('studyPlans').find({
         sid: { $in: req.body.ids },
-        approved: true,
+        approved: false,
         approval: { $exists: true },
         'approval.supervisor.approval': "approved" // Ensure this matches your data
       }).toArray();
     } else if (role == 'admin') {
       studyplans = await db.collection('studyPlans').find({
         sid: { $in: req.body.ids },
-        approved: true,
+        approved: false,
         approval: { $exists: true },
         'approval.supervisor.approval': "approved", // Ensure this matches your data
         'approval.head.approval': "approved" // Ensure this matches your data
