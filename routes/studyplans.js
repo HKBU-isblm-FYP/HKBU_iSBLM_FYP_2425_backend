@@ -26,38 +26,38 @@ router.put('/pending', async function (req, res, next) {
   try {
     req.body.ids = req.body.ids.map(id => new ObjectId(id));
     const role = req.body.role;
-    studyplans = []
+    let studyplans = []; // Use 'let' to avoid redeclaration issues
+
     if (role == 'supervisor') {
       studyplans = await db.collection('studyPlans').find({ 
         sid: { $in: req.body.ids }, 
-        approved: false, approval: { $exists: true } }).toArray();
+        approved: false, 
+        approval: { $exists: true } 
+      }).toArray();
     } else if (role == 'head') {
       studyplans = await db.collection('studyPlans').find({
         sid: { $in: req.body.ids },
         approved: true,
         approval: { $exists: true },
-        'approval.supervisor.approval': { $exists: true },
-        'approval.supervisor.approval': "approved"
+        'approval.supervisor.approval': "approved" // Ensure this matches your data
       }).toArray();
-    }else if (role == 'admin') {
-      const studyplans = await db.collection('studyPlans').find({
+    } else if (role == 'admin') {
+      studyplans = await db.collection('studyPlans').find({
         sid: { $in: req.body.ids },
         approved: true,
         approval: { $exists: true },
-        'approval.supervisor.approval': { $exists: true },
-        'approval.supervisor.approval': "approved",
-        'approval.head.approval': { $exists: true },
-        'approval.head.approval': "approved"
+        'approval.supervisor.approval': "approved", // Ensure this matches your data
+        'approval.head.approval': "approved" // Ensure this matches your data
       }).toArray();
     }
-      console.log(studyplans);
-      return res.json(studyplans);
-    } catch (err) {
-      console.log(err);
-      return res.status(500).json({ error: err.toString() });
-    }
-  });
 
+    console.log(studyplans);
+    return res.json(studyplans);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ error: err.toString() });
+  }
+});
 
 router.get('/:sid/current', async function (req, res, next) {
   const db = await connectToDB();
